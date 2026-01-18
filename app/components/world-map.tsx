@@ -2,20 +2,88 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  CONTINENTS,
   type ContinentId,
   findContinentById,
+  mapCountryToContinent,
 } from "@/lib/geo/continents";
+import { getCountries, type Country } from "@/lib/api/countries";
 
 type WorldMapProps = {
   highlightDurationMs?: number;
 };
 
+type SvgPathData = {
+  id: string; // ISO code or _somaliland
+  d: string;
+  continentId: ContinentId | null;
+};
+
 export function WorldMap({ highlightDurationMs = 5000 }: WorldMapProps) {
-  const [activeContinentId, setActiveContinentId] = useState<ContinentId | null>(
-    null,
-  );
+  const [activeContinentId, setActiveContinentId] =
+    useState<ContinentId | null>(null);
+  const [svgPaths, setSvgPaths] = useState<SvgPathData[]>([]);
+  const [viewBox, setViewBox] = useState("0 0 800 600");
+  const [loading, setLoading] = useState(true);
   const timeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    async function initMap() {
+      try {
+        const svgRes = await fetch("/maps/world.svg");
+        const svgText = await svgRes.text();
+
+        const countries = await getCountries();
+        const countryMap = new Map<string, Country>();
+        countries.forEach((c) => {
+          countryMap.set(c.cca2.toLowerCase(), c);
+        });
+
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(svgText, "image/svg+xml");
+
+        const svgElement = doc.querySelector("svg");
+        if (svgElement) {
+          const vb = svgElement.getAttribute("viewBox");
+          if (vb) setViewBox(vb);
+        }
+
+        const paths = Array.from(doc.querySelectorAll("path"));
+
+        const extractedPaths: SvgPathData[] = paths.map((p, index) => {
+          const rawId =
+            p.getAttribute("id") ??
+            p.closest("g[id]")?.getAttribute("id") ??
+            "";
+          const id = rawId || `path-${index}`;
+          const d = p.getAttribute("d") || "";
+          let continentId: ContinentId | null = null;
+
+          const lookupId = rawId.toLowerCase();
+          if (lookupId === "_somaliland") {
+            continentId = "africa";
+          } else if (lookupId) {
+            const country = countryMap.get(lookupId);
+            if (country) {
+              continentId = mapCountryToContinent(
+                country.region,
+                country.subregion,
+              );
+            }
+          }
+
+          return { id, d, continentId };
+        });
+
+        setSvgPaths(extractedPaths);
+      } catch (e) {
+        console.error("Failed to load map:", e);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    initMap();
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -45,28 +113,59 @@ export function WorldMap({ highlightDurationMs = 5000 }: WorldMapProps) {
     ? findContinentById(activeContinentId)
     : null;
 
+  if (loading) {
+    return (
+      <div className="flex w-full max-w-4xl aspect-[16/9] items-center justify-center bg-sky-100 rounded-xl">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-600"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="relative w-full max-w-4xl aspect-[16/9]">
       <svg
-        viewBox="0 0 800 400"
-        className="h-full w-full"
+        viewBox={viewBox}
+        className="h-full w-full rounded-xl bg-sky-300 shadow-xl"
         aria-label="World map with tappable continents"
       >
-        <rect x="0" y="0" width="800" height="400" fill="#0ea5e9" />
-        {CONTINENTS.map((continent) => {
-          const isActive = continent.id === activeContinentId;
+        {svgPaths.map((pathData, index) => {
+          const continent = pathData.continentId
+            ? findContinentById(pathData.continentId)
+            : null;
+          const isActive = pathData.continentId === activeContinentId;
+
+          const fill = continent
+            ? isActive
+              ? continent.activeColor
+              : continent.color
+            : "#f1f5f9";
+
+          const stroke = isActive ? "#ffffff" : "#ffffff";
+          const strokeWidth = isActive ? 1.5 : 0.5;
+
+          if (!continent) {
+            return (
+              <path
+                key={`${pathData.id}-${index}`}
+                d={pathData.d}
+                fill={fill}
+                stroke="#cbd5e1"
+                strokeWidth={0.5}
+              />
+            );
+          }
 
           return (
             <path
-              key={continent.id}
-              d={continent.path}
-              fill={isActive ? continent.activeColor : continent.color}
-              stroke="#0f172a"
-              strokeWidth={1.5}
+              key={`${pathData.id}-${index}`}
+              d={pathData.d}
+              fill={fill}
+              stroke={stroke}
+              strokeWidth={strokeWidth}
               role="button"
               aria-label={continent.name}
               tabIndex={0}
-              className="cursor-pointer touch-manipulation transition-colors focus:outline-none focus-visible:stroke-4"
+              className="cursor-pointer transition-colors focus:outline-none"
               onClick={() => handleContinentPress(continent.id)}
               onKeyDown={(event) => {
                 if (event.key === "Enter" || event.key === " ") {
@@ -78,10 +177,11 @@ export function WorldMap({ highlightDurationMs = 5000 }: WorldMapProps) {
           );
         })}
       </svg>
+
       {activeContinent && (
         <div className="pointer-events-none absolute inset-0">
           <div
-            className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full bg-sky-900/80 px-4 py-2 text-lg font-semibold text-sky-50 shadow-lg md:text-2xl"
+            className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/95 px-6 py-3 text-xl font-bold text-slate-900 shadow-2xl ring-1 ring-slate-900/10 backdrop-blur-sm transition-all animate-in fade-in zoom-in duration-300 md:text-3xl"
             style={{
               left: `${activeContinent.labelXPercent}%`,
               top: `${activeContinent.labelYPercent}%`,
@@ -121,4 +221,3 @@ function speakContinentName(id: ContinentId) {
 
   synth.speak(utterance);
 }
-

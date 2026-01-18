@@ -30,7 +30,8 @@ self.addEventListener("fetch", (event) => {
 
   if (
     request.method !== "GET" ||
-    !request.url.startsWith(self.location.origin)
+    !request.url.startsWith(self.location.origin) ||
+    request.url.includes("/api/")
   ) {
     return;
   }
@@ -67,4 +68,3 @@ self.addEventListener("fetch", (event) => {
     }),
   );
 });
-
