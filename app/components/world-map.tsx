@@ -42,10 +42,9 @@ export function WorldMap({ highlightDurationMs = 5000 }: WorldMapProps) {
         const doc = parser.parseFromString(svgText, "image/svg+xml");
 
         const svgElement = doc.querySelector("svg");
-        if (svgElement) {
-          const vb = svgElement.getAttribute("viewBox");
-          if (vb) setViewBox(vb);
-        }
+        const viewBoxValue =
+          svgElement?.getAttribute("viewBox") ?? "0 0 800 600";
+        setViewBox(viewBoxValue);
 
         const paths = Array.from(doc.querySelectorAll("path"));
 
@@ -67,6 +66,7 @@ export function WorldMap({ highlightDurationMs = 5000 }: WorldMapProps) {
               continentId = mapCountryToContinent(
                 country.region,
                 country.subregion,
+                country.cca2,
               );
             }
           }
