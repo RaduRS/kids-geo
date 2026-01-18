@@ -115,17 +115,17 @@ export function WorldMap({ highlightDurationMs = 5000 }: WorldMapProps) {
 
   if (loading) {
     return (
-      <div className="flex w-full max-w-4xl aspect-[16/9] items-center justify-center bg-sky-100 rounded-xl">
+      <div className="flex w-full max-w-4xl aspect-video items-center justify-center rounded-xl bg-sky-100">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-600"></div>
       </div>
     );
   }
 
   return (
-    <div className="relative w-full max-w-4xl aspect-[16/9]">
+    <div className="relative w-full aspect-video overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-slate-900/10">
       <svg
         viewBox={viewBox}
-        className="h-full w-full rounded-xl bg-sky-300 shadow-xl"
+        className="h-full w-full bg-sky-300"
         aria-label="World map with tappable continents"
       >
         {svgPaths.map((pathData, index) => {
@@ -165,8 +165,12 @@ export function WorldMap({ highlightDurationMs = 5000 }: WorldMapProps) {
               role="button"
               aria-label={continent.name}
               tabIndex={0}
-              className="cursor-pointer transition-colors focus:outline-none"
-              onClick={() => handleContinentPress(continent.id)}
+              className="cursor-pointer outline-none transition-colors focus:outline-none focus-visible:outline-none"
+              style={{ outline: "none" }}
+              onClick={(event) => {
+                handleContinentPress(continent.id);
+                (event.currentTarget as SVGPathElement).blur();
+              }}
               onKeyDown={(event) => {
                 if (event.key === "Enter" || event.key === " ") {
                   event.preventDefault();

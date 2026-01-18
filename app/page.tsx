@@ -15,7 +15,7 @@ export default function Home() {
         </div>
       </header>
 
-      <section className="rounded-3xl bg-white p-3 shadow-sm ring-1 ring-slate-900/10 md:p-5">
+      <section className="w-full">
         <WorldMap />
       </section>
     </div>

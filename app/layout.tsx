@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
+import Image from "next/image";
 import "./globals.css";
+import { HeaderNav } from "./components/header-nav";
 import { PwaRegister } from "@/app/components/pwa-register";
 
 const geistSans = Geist({
@@ -19,6 +21,12 @@ export const metadata: Metadata = {
   description:
     "Tablet-first geography game for kids with interactive world map and PWA support.",
   manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", type: "image/x-icon" },
+      { url: "/globe.svg", type: "image/svg+xml" },
+    ],
+  },
 };
 
 export const viewport = {
@@ -36,12 +44,23 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased text-slate-900`}
       >
         <PwaRegister />
-        <div className="min-h-screen bg-gradient-to-b from-sky-50 via-sky-50 to-sky-100">
+        <div className="min-h-screen bg-linear-to-b from-sky-50 via-sky-50 to-sky-100">
           <header className="sticky top-0 z-20 w-full border-b border-sky-200/70 bg-white/70 backdrop-blur">
             <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-3 md:px-6 md:py-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-sky-600 text-base font-black tracking-tight text-white shadow-sm shadow-sky-900/15">
-                  KG
+              <Link
+                href="/"
+                className="flex items-center gap-3 rounded-2xl outline-none focus:outline-none focus-visible:outline-none"
+                aria-label="Go to world map"
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-linear-to-br from-emerald-400 via-sky-500 to-fuchsia-500 shadow-sm shadow-slate-900/10 ring-2 ring-white/80">
+                  <Image
+                    src="/flag.svg"
+                    alt=""
+                    width={22}
+                    height={22}
+                    className="h-6 w-6 opacity-100"
+                    priority
+                  />
                 </div>
                 <div className="leading-tight">
                   <div className="text-lg font-semibold md:text-xl">
@@ -51,22 +70,9 @@ export default function RootLayout({
                     Tap to learn geography
                   </div>
                 </div>
-              </div>
+              </Link>
 
-              <nav className="flex items-center gap-2">
-                <Link
-                  href="/"
-                  className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-slate-900/10 transition-colors hover:bg-slate-800 active:bg-slate-950"
-                >
-                  Map
-                </Link>
-                <Link
-                  href="/continents"
-                  className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-slate-900/10 transition-colors hover:bg-slate-50 active:bg-slate-100"
-                >
-                  Continents
-                </Link>
-              </nav>
+              <HeaderNav />
             </div>
           </header>
 
