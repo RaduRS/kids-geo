@@ -1,8 +1,19 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## Kids Geo
+
+Kids Geo is a tablet-first learning app for kids to explore geography.
+
+The first version focuses on an interactive world map:
+
+- Colorful continents rendered as an SVG world map
+- Tap a continent to hear its name using the browser Text-to-Speech API
+- A large label appears on the tapped continent for 5 seconds
+- Layout is responsive, optimized for tablets but works on phones and desktop
+
+The app is built with [Next.js](https://nextjs.org) (App Router) and React.
 
 ## Getting Started
 
-First, run the development server:
+To run the development server:
 
 ```bash
 npm run dev
@@ -16,21 +27,43 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+You can start editing the main screen by modifying `app/page.tsx`. The world
+map logic lives in:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `app/components/world-map.tsx` – interactive SVG world map and TTS behavior
+- `lib/geo/continents.ts` – continents data and shapes
 
-## Learn More
+## Progressive Web App (PWA)
 
-To learn more about Next.js, take a look at the following resources:
+Kids Geo is configured as a basic PWA so that it can be installed on tablets
+and work offline for core experiences.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Key pieces:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `app/manifest.ts`
+  - Exposes `/manifest.webmanifest` with app name, colors, and icon
+- `public/sw.js`
+  - Service worker that:
+    - Pre-caches `/` and `/favicon.ico`
+    - Uses a cache-first strategy for static assets
+    - Falls back to the cached home page for navigation when offline
+- `app/components/pwa-register.tsx`
+  - Client-side component that registers the service worker at `/sw.js`
+  - Only runs when `navigator.serviceWorker` is available and the page is
+    served over HTTPS or on `localhost`
+- `app/layout.tsx`
+  - Imports and renders `PwaRegister` once at the root
+  - Defines `metadata` with title, description, theme color, and manifest path
 
-## Deploy on Vercel
+With this setup, when you build and deploy the app over HTTPS:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- Browsers can install it to the home screen
+- Static assets and the home page are cached for offline use
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Future Features
+
+Planned additions include:
+
+- Second screen with a list of continents
+- Drilling into each continent to show its countries, capitals, and flags
+- More game-like interactions for kids (quizzes, drag-and-drop, etc.)
