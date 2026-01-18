@@ -16,14 +16,7 @@ export type Continent = {
   path: string;
 };
 
-export const CONTINENT_MAP_SVG_SRC: Record<ContinentId, string> = {
-  africa: "/maps/africaHigh.svg",
-  asia: "/maps/asiaHigh.svg",
-  europe: "/maps/europeHigh.svg",
-  "north-america": "/maps/northAmericaHigh.svg",
-  "south-america": "/maps/southAmericaHigh.svg",
-  "australia-oceania": "/maps/oceaniaHigh.svg",
-};
+export const WORLD_MAP_SVG_SRC = "/maps/world.svg";
 
 export const CONTINENTS: Continent[] = [
   {
@@ -110,4 +103,13 @@ export function mapCountryToContinent(
   }
 
   return null;
+}
+
+export function shouldKeepOnlyMainlandForContinent(
+  continentId: ContinentId,
+  countryCode: string,
+) {
+  if (continentId !== "europe") return false;
+  const code = countryCode.toLowerCase();
+  return code === "fr" || code === "es" || code === "pt";
 }

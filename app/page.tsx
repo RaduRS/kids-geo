@@ -13,18 +13,11 @@ export default function Home() {
             for a few seconds.
           </p>
         </div>
-        <div className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-slate-900/10">
-          Best on tablets
-        </div>
       </header>
 
       <section className="rounded-3xl bg-white p-3 shadow-sm ring-1 ring-slate-900/10 md:p-5">
         <WorldMap />
       </section>
-
-      <div className="text-center text-sm text-slate-600 md:text-base">
-        Tip: tap the same continent again to repeat the voice.
-      </div>
     </div>
   );
 }
