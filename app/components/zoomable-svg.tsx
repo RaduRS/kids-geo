@@ -110,21 +110,7 @@ export function useZoomableMap(baseViewBox: string) {
 
   const onPointerDown = (event: React.PointerEvent<SVGSVGElement>) => {
     if (!svgRef.current) return;
-    const captureTarget = event.target as Element | null;
-    if (
-      captureTarget &&
-      "setPointerCapture" in captureTarget &&
-      typeof (captureTarget as { setPointerCapture?: unknown })
-        .setPointerCapture === "function"
-    ) {
-      (
-        captureTarget as Element & {
-          setPointerCapture: (pointerId: number) => void;
-        }
-      ).setPointerCapture(event.pointerId);
-    } else {
-      event.currentTarget.setPointerCapture(event.pointerId);
-    }
+    svgRef.current.setPointerCapture(event.pointerId);
     pointersRef.current.set(event.pointerId, {
       x: event.clientX,
       y: event.clientY,

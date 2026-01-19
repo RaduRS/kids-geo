@@ -1485,10 +1485,11 @@ export default function QuizPage() {
                         className="absolute inset-0"
                         style={{
                           transform: `translate(${offset}px, ${offset}px)`,
+                          zIndex: index + 1,
                         }}
                       >
                         <div
-                          className={`h-full w-full overflow-hidden rounded-2xl ring-1 ring-slate-900/10 ${shadowClass}`}
+                          className={`relative h-full w-full overflow-hidden rounded-2xl ring-1 ring-slate-900/10 ${shadowClass}`}
                         >
                           <Image
                             src={flagSrc}

@@ -2,12 +2,18 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { MouseEvent } from "react";
 
 export function HeaderNav() {
   const pathname = usePathname();
   const isQuiz = pathname.startsWith("/quiz");
   const isContinents = pathname.startsWith("/continents");
   const isMap = pathname === "/";
+  const handleQuizClick = (event: MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault();
+    if (typeof window === "undefined") return;
+    window.location.href = `/quiz?reset=1&ts=${Date.now()}`;
+  };
 
   const activeClass =
     "rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-slate-900/10 outline-none hover:bg-slate-800 focus:outline-none focus-visible:outline-none active:bg-slate-950";
@@ -32,6 +38,7 @@ export function HeaderNav() {
       <Link
         href="/quiz?reset=1"
         className={isQuiz ? quizActiveClass : quizClass}
+        onClick={handleQuizClick}
       >
         Quiz
       </Link>
