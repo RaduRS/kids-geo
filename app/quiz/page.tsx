@@ -1,7 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { ZoomableSvg } from "@/app/components/zoomable-svg";
 import { WorldMap } from "@/app/components/world-map";
@@ -502,7 +501,6 @@ export default function QuizPage() {
   const [mode, setMode] = useState<QuizMode>("landing");
   const [svgText, setSvgText] = useState<string | null>(null);
   const [countries, setCountries] = useState<Country[] | null>(null);
-  const searchParams = useSearchParams();
 
   const codeToContinent = useMemo(() => {
     if (!countries) return null;
@@ -603,7 +601,9 @@ export default function QuizPage() {
   }, []);
 
   useEffect(() => {
-    if (!searchParams.get("reset")) return;
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (!params.get("reset")) return;
     setMode("landing");
     setSelectedContinentId(null);
     setCountryQuestionOrder([]);
@@ -643,7 +643,7 @@ export default function QuizPage() {
     setContinentAnswered(false);
     setContinentRevealId(null);
     setContinentLastGuessId(null);
-  }, [searchParams]);
+  }, []);
 
   const [continentOrder, setContinentOrder] = useState<ContinentId[]>([]);
   const [continentQuestionIndex, setContinentQuestionIndex] = useState(0);
