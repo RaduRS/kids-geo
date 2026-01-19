@@ -10,6 +10,10 @@ import { getCountries, type Country } from "@/lib/api/countries";
 
 type WorldMapProps = {
   highlightDurationMs?: number;
+  activeContinentId?: ContinentId | null;
+  onContinentPress?: (id: ContinentId) => void;
+  enableSpeech?: boolean;
+  showLabel?: boolean;
 };
 
 type SvgPathData = {
@@ -18,13 +22,23 @@ type SvgPathData = {
   continentId: ContinentId | null;
 };
 
-export function WorldMap({ highlightDurationMs = 5000 }: WorldMapProps) {
-  const [activeContinentId, setActiveContinentId] =
+export function WorldMap({
+  highlightDurationMs = 5000,
+  activeContinentId,
+  onContinentPress,
+  enableSpeech = true,
+  showLabel = true,
+}: WorldMapProps) {
+  const [internalActiveContinentId, setInternalActiveContinentId] =
     useState<ContinentId | null>(null);
   const [svgPaths, setSvgPaths] = useState<SvgPathData[]>([]);
   const [viewBox, setViewBox] = useState("0 0 800 600");
   const [loading, setLoading] = useState(true);
   const timeoutRef = useRef<number | null>(null);
+  const isControlled = activeContinentId !== undefined;
+  const effectiveActiveContinentId = isControlled
+    ? activeContinentId
+    : internalActiveContinentId;
 
   useEffect(() => {
     async function initMap() {
@@ -94,23 +108,31 @@ export function WorldMap({ highlightDurationMs = 5000 }: WorldMapProps) {
   }, []);
 
   const handleContinentPress = (id: ContinentId) => {
+    onContinentPress?.(id);
+
+    if (isControlled) {
+      return;
+    }
+
     if (timeoutRef.current !== null && typeof window !== "undefined") {
       window.clearTimeout(timeoutRef.current);
     }
 
-    setActiveContinentId(id);
-    speakContinentName(id);
+    setInternalActiveContinentId(id);
+    if (enableSpeech) {
+      speakContinentName(id);
+    }
 
     if (typeof window !== "undefined") {
       const timeoutId = window.setTimeout(() => {
-        setActiveContinentId(null);
+        setInternalActiveContinentId(null);
       }, highlightDurationMs);
       timeoutRef.current = timeoutId;
     }
   };
 
-  const activeContinent = activeContinentId
-    ? findContinentById(activeContinentId)
+  const activeContinent = effectiveActiveContinentId
+    ? findContinentById(effectiveActiveContinentId)
     : null;
 
   if (loading) {
@@ -132,7 +154,7 @@ export function WorldMap({ highlightDurationMs = 5000 }: WorldMapProps) {
           const continent = pathData.continentId
             ? findContinentById(pathData.continentId)
             : null;
-          const isActive = pathData.continentId === activeContinentId;
+          const isActive = pathData.continentId === effectiveActiveContinentId;
 
           const fill = continent
             ? isActive
@@ -182,7 +204,7 @@ export function WorldMap({ highlightDurationMs = 5000 }: WorldMapProps) {
         })}
       </svg>
 
-      {activeContinent && (
+      {showLabel && activeContinent && (
         <div className="pointer-events-none absolute inset-0">
           <div
             className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/95 px-6 py-3 text-xl font-bold text-slate-900 shadow-2xl ring-1 ring-slate-900/10 backdrop-blur-sm transition-all animate-in fade-in zoom-in duration-300 md:text-3xl"

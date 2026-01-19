@@ -198,12 +198,6 @@ export default function ContinentsPage() {
             Pick a continent to explore its countries, capitals, and flags.
           </p>
         </div>
-        <Link
-          href="/"
-          className="rounded-full bg-white px-5 py-2 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-slate-900/10 transition-colors hover:bg-slate-50 active:bg-slate-100"
-        >
-          Back to map
-        </Link>
       </header>
 
       <section className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
