@@ -29,7 +29,10 @@ export function HeaderNav() {
       >
         Continents
       </Link>
-      <Link href="/quiz" className={isQuiz ? quizActiveClass : quizClass}>
+      <Link
+        href="/quiz?reset=1"
+        className={isQuiz ? quizActiveClass : quizClass}
+      >
         Quiz
       </Link>
     </nav>

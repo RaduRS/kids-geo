@@ -404,7 +404,7 @@ export default function ContinentDetailPage({
                   <div className="flex items-center gap-4">
                     <button
                       type="button"
-                      className="relative h-14 w-20 overflow-hidden rounded-xl ring-1 ring-slate-900/10 outline-none focus:outline-none focus-visible:outline-none"
+                      className="relative h-14 w-20 cursor-pointer overflow-hidden rounded-xl ring-1 ring-slate-900/10 outline-none focus:outline-none focus-visible:outline-none"
                       onClick={() => speakCountryName(selectedCountry)}
                       onKeyDown={(event) => {
                         if (event.key === "Enter" || event.key === " ") {
@@ -428,7 +428,7 @@ export default function ContinentDetailPage({
                     <div className="min-w-0">
                       <button
                         type="button"
-                        className="block w-full truncate text-left text-xl font-bold text-slate-900 outline-none focus:outline-none focus-visible:outline-none"
+                        className="block w-full cursor-pointer truncate text-left text-xl font-bold text-slate-900 outline-none focus:outline-none focus-visible:outline-none"
                         onClick={() => speakCountryName(selectedCountry)}
                         onKeyDown={(event) => {
                           if (event.key === "Enter" || event.key === " ") {
@@ -445,7 +445,7 @@ export default function ContinentDetailPage({
                       </button>
                       <button
                         type="button"
-                        className="mt-1 block w-full text-left text-base font-semibold text-slate-700 outline-none focus:outline-none focus-visible:outline-none"
+                        className="mt-1 block w-full cursor-pointer text-left text-base font-semibold text-slate-700 outline-none focus:outline-none focus-visible:outline-none"
                         onClick={() => {
                           const capital = selectedCountry.capital?.[0];
                           if (!capital) return;

@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { ZoomableSvg } from "@/app/components/zoomable-svg";
 import { WorldMap } from "@/app/components/world-map";
@@ -297,10 +298,211 @@ function ContinentSvgPreview({
   );
 }
 
+function WorldSvgPreview({ svgText }: { svgText: string }) {
+  const [svgMarkup, setSvgMarkup] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      try {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(svgText, "image/svg+xml");
+        const svg = doc.querySelector("svg");
+
+        if (!svg) {
+          return;
+        }
+
+        svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+        svg.removeAttribute("width");
+        svg.removeAttribute("height");
+
+        const paths = Array.from(svg.querySelectorAll("path"));
+        paths.forEach((p) => {
+          p.setAttribute("fill", "#cbd5e1");
+          p.setAttribute("stroke", "#ffffff");
+          p.setAttribute("stroke-width", "0.5");
+          p.removeAttribute("class");
+        });
+
+        const serializer = new XMLSerializer();
+        const markup = serializer.serializeToString(svg);
+        if (!cancelled) {
+          setSvgMarkup(markup);
+        }
+      } catch {
+        if (!cancelled) {
+          setSvgMarkup(null);
+        }
+      }
+    }
+
+    load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [svgText]);
+
+  if (!svgMarkup) {
+    return (
+      <div className="flex h-full w-full flex-col items-center justify-center gap-2 p-6 text-center">
+        <div className="text-sm font-semibold text-slate-700">
+          Preview loading…
+        </div>
+        <div className="text-xs text-slate-500">World map preview</div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="h-full w-full p-4 [&_svg]:h-full [&_svg]:w-full"
+      aria-label="World map preview"
+      dangerouslySetInnerHTML={{ __html: svgMarkup }}
+    />
+  );
+}
+
+function EuropeHighlightPreview({
+  svgText,
+  codeToContinent,
+  highlightCode,
+}: {
+  svgText: string;
+  codeToContinent: Map<string, ContinentId>;
+  highlightCode: string;
+}) {
+  const [svgMarkup, setSvgMarkup] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      try {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(svgText, "image/svg+xml");
+        const svg = doc.querySelector("svg");
+
+        if (!svg) {
+          return;
+        }
+
+        svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+        svg.removeAttribute("width");
+        svg.removeAttribute("height");
+
+        const normalizedHighlight = highlightCode.toLowerCase();
+        const paths = Array.from(svg.querySelectorAll("path"));
+        paths.forEach((p) => {
+          const rawId =
+            p.getAttribute("id") ??
+            p.closest("g[id]")?.getAttribute("id") ??
+            "";
+          const normalized = rawId.toLowerCase();
+          const isSomaliland = normalized === "_somaliland";
+          const mappedContinent = isSomaliland
+            ? ("africa" as const)
+            : (codeToContinent.get(normalized) ?? null);
+
+          if (mappedContinent !== "europe") {
+            p.remove();
+            return;
+          }
+
+          if (
+            shouldKeepOnlyMainlandForContinent("europe", normalized) &&
+            !p.classList.contains("mainland")
+          ) {
+            p.remove();
+            return;
+          }
+
+          const isHighlight =
+            normalized === normalizedHighlight ||
+            (normalizedHighlight === "gb" && normalized === "uk");
+          p.setAttribute("fill", isHighlight ? "#86efac" : "#e2e8f0");
+          p.setAttribute("stroke", "#ffffff");
+          p.setAttribute("stroke-width", "0.5");
+          p.removeAttribute("class");
+        });
+
+        const tempHost = document.createElement("div");
+        tempHost.style.position = "absolute";
+        tempHost.style.left = "-10000px";
+        tempHost.style.top = "0";
+        tempHost.style.width = "1px";
+        tempHost.style.height = "1px";
+        tempHost.style.overflow = "visible";
+        tempHost.style.visibility = "hidden";
+        document.body.appendChild(tempHost);
+
+        let markup: string | null = null;
+
+        try {
+          const importedSvg = document.importNode(svg, true);
+          importedSvg.setAttribute("width", "100%");
+          importedSvg.setAttribute("height", "100%");
+          tempHost.appendChild(importedSvg);
+
+          const bboxTarget =
+            importedSvg.querySelector("g") ??
+            (importedSvg as SVGGraphicsElement);
+          const bbox = (bboxTarget as SVGGraphicsElement).getBBox();
+          const padX = bbox.width * 0.06;
+          const padY = bbox.height * 0.06;
+          const viewBox = `${bbox.x - padX} ${bbox.y - padY} ${bbox.width + padX * 2} ${bbox.height + padY * 2}`;
+          importedSvg.setAttribute("viewBox", viewBox);
+
+          const serializer = new XMLSerializer();
+          markup = serializer.serializeToString(importedSvg);
+        } finally {
+          tempHost.remove();
+        }
+
+        if (!cancelled) {
+          setSvgMarkup(markup);
+        }
+      } catch {
+        if (!cancelled) {
+          setSvgMarkup(null);
+        }
+      }
+    }
+
+    load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [codeToContinent, highlightCode, svgText]);
+
+  if (!svgMarkup) {
+    return (
+      <div className="flex h-full w-full flex-col items-center justify-center gap-2 p-6 text-center">
+        <div className="text-sm font-semibold text-slate-700">
+          Preview loading…
+        </div>
+        <div className="text-xs text-slate-500">Europe map preview</div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="h-full w-full p-4 [&_svg]:h-full [&_svg]:w-full"
+      aria-label="Europe map preview"
+      dangerouslySetInnerHTML={{ __html: svgMarkup }}
+    />
+  );
+}
+
 export default function QuizPage() {
   const [mode, setMode] = useState<QuizMode>("landing");
   const [svgText, setSvgText] = useState<string | null>(null);
   const [countries, setCountries] = useState<Country[] | null>(null);
+  const searchParams = useSearchParams();
 
   const codeToContinent = useMemo(() => {
     if (!countries) return null;
@@ -327,6 +529,58 @@ export default function QuizPage() {
     return map;
   }, [countries]);
 
+  const previewCapitalCountry = useMemo(() => {
+    const preferred = ["us", "gb", "fr"];
+    for (const code of preferred) {
+      const country = allCountriesByCode.get(code);
+      if (
+        country &&
+        getPrimaryCapital(country) &&
+        (country.flags?.svg || country.flags?.png)
+      ) {
+        return country;
+      }
+    }
+
+    return (
+      Array.from(allCountriesByCode.values()).find(
+        (country) =>
+          getPrimaryCapital(country) &&
+          (country.flags?.svg || country.flags?.png),
+      ) ?? null
+    );
+  }, [allCountriesByCode]);
+
+  const previewCapitalName = getPrimaryCapital(previewCapitalCountry);
+
+  const previewFlagCountries = useMemo(() => {
+    const preferred = ["us", "fr", "jp", "br", "ng"];
+    const selected: Country[] = [];
+    const seen = new Set<string>();
+
+    preferred.forEach((code) => {
+      const country = allCountriesByCode.get(code);
+      if (!country) return;
+      const flag = country.flags?.svg || country.flags?.png;
+      if (!flag) return;
+      selected.push(country);
+      seen.add(country.cca2.toLowerCase());
+    });
+
+    if (selected.length < 5) {
+      for (const country of allCountriesByCode.values()) {
+        if (selected.length >= 5) break;
+        if (seen.has(country.cca2.toLowerCase())) continue;
+        const flag = country.flags?.svg || country.flags?.png;
+        if (!flag) continue;
+        selected.push(country);
+        seen.add(country.cca2.toLowerCase());
+      }
+    }
+
+    return selected.slice(0, 5);
+  }, [allCountriesByCode]);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -347,6 +601,49 @@ export default function QuizPage() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!searchParams.get("reset")) return;
+    setMode("landing");
+    setSelectedContinentId(null);
+    setCountryQuestionOrder([]);
+    setCountrySvgPaths([]);
+    setCountryAnswered(false);
+    setCountryRevealCode(null);
+    setCountryLastGuessCode(null);
+    setCountryScore(0);
+    setCountryQuestionIndex(0);
+    setCountryAvailableCodes([]);
+    setCountryMapLoading(false);
+    setCapitalsContinentId(null);
+    setCapitalsQuestionOrder([]);
+    setCapitalsSvgPaths([]);
+    setCapitalsAnswered(false);
+    setCapitalsRevealCode(null);
+    setCapitalsLastGuess(null);
+    setCapitalsSelectedAnswer(null);
+    setCapitalsOptions([]);
+    setCapitalsAvailableCodes([]);
+    setCapitalsScore(0);
+    setCapitalsQuestionIndex(0);
+    setCapitalsMapLoading(false);
+    setFlagsContinentId(null);
+    setFlagsQuestionOrder([]);
+    setFlagsSvgPaths([]);
+    setFlagsAnswered(false);
+    setFlagsRevealCode(null);
+    setFlagsLastGuessCode(null);
+    setFlagsAvailableCodes([]);
+    setFlagsScore(0);
+    setFlagsQuestionIndex(0);
+    setFlagsMapLoading(false);
+    setContinentOrder([]);
+    setContinentQuestionIndex(0);
+    setContinentScore(0);
+    setContinentAnswered(false);
+    setContinentRevealId(null);
+    setContinentLastGuessId(null);
+  }, [searchParams]);
 
   const [continentOrder, setContinentOrder] = useState<ContinentId[]>([]);
   const [continentQuestionIndex, setContinentQuestionIndex] = useState(0);
@@ -483,6 +780,12 @@ export default function QuizPage() {
 
   const scoreGoal = 10;
 
+  const [flagsContinentId, setFlagsContinentId] = useState<ContinentId | null>(
+    null,
+  );
+  const [flagsCountriesByCode, setFlagsCountriesByCode] = useState<
+    Map<string, Country>
+  >(() => new Map());
   const [flagsSvgPaths, setFlagsSvgPaths] = useState<SvgCountryPath[]>([]);
   const [flagsBaseViewBox, setFlagsBaseViewBox] = useState("0 0 100 100");
   const [flagsQuestionOrder, setFlagsQuestionOrder] = useState<string[]>([]);
@@ -781,7 +1084,6 @@ export default function QuizPage() {
     ? (capitalsCountriesByCode.get(capitalsTargetCode) ?? null)
     : null;
   const capitalsTargetCapital = getPrimaryCapital(capitalsTargetCountry);
-
   useEffect(() => {
     if (!capitalsTargetCode) {
       setCapitalsOptions([]);
@@ -863,10 +1165,11 @@ export default function QuizPage() {
       setCapitalsScore((prev) => prev + 1);
     }
 
+    const answerSentence = `${correctCapital} is the capital of ${capitalsTargetCountry.name.common}.`;
     speakText(
       isCorrect
-        ? `${correctCapital}. Correct!`
-        : `${capitalsSelectedAnswer}. Not quite! ${correctCapital} is the capital of ${capitalsTargetCountry.name.common}.`,
+        ? `${answerSentence} Correct!`
+        : `${capitalsSelectedAnswer}. Not quite! ${answerSentence}`,
     );
   };
 
@@ -900,7 +1203,7 @@ export default function QuizPage() {
   const capitalsDone =
     capitalsContinentId !== null && capitalsScore >= scoreGoal;
 
-  const startFlagsQuiz = async () => {
+  const startFlagsQuizForContinent = async (continentId: ContinentId) => {
     if (!countries) return;
 
     setSelectedContinentId(null);
@@ -910,6 +1213,7 @@ export default function QuizPage() {
     setCountryRevealCode(null);
     setCountryLastGuessCode(null);
 
+    setFlagsContinentId(continentId);
     setFlagsScore(0);
     setFlagsQuestionIndex(0);
     setFlagsAnswered(false);
@@ -922,104 +1226,18 @@ export default function QuizPage() {
     setFlagsAvailableCodes([]);
 
     try {
-      const nextSvgText =
-        svgText ?? (await fetch(WORLD_MAP_SVG_SRC).then((r) => r.text()));
-      if (!nextSvgText) {
-        setFlagsSvgPaths([]);
-        setFlagsBaseViewBox("0 0 100 100");
-        return;
-      }
+      const data = await loadContinentMapData(continentId);
+      if (!data) return;
 
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(nextSvgText, "image/svg+xml");
-      const svg = doc.querySelector("svg");
-      if (!svg) {
-        setFlagsSvgPaths([]);
-        setFlagsBaseViewBox("0 0 100 100");
-        return;
-      }
-
-      const svgForBBox = svg.cloneNode(true) as SVGSVGElement;
-      svgForBBox.setAttribute("preserveAspectRatio", "xMidYMid meet");
-      svgForBBox.removeAttribute("width");
-      svgForBBox.removeAttribute("height");
-
-      const paths = Array.from(svgForBBox.querySelectorAll("path"));
-      const extractedPaths: SvgCountryPath[] = [];
-
-      paths.forEach((p, index) => {
-        const rawId =
-          p.getAttribute("id") ?? p.closest("g[id]")?.getAttribute("id") ?? "";
-        const normalized = rawId.toLowerCase();
-
-        if (normalized === "_somaliland") {
-          p.remove();
-          return;
-        }
-
-        const aliased = COUNTRY_CODE_ALIASES[normalized] ?? normalized;
-        const countryCode = aliased.length === 2 ? aliased : null;
-
-        if (!countryCode) {
-          p.remove();
-          return;
-        }
-
-        const country = allCountriesByCode.get(countryCode);
-        if (!country) {
-          p.remove();
-          return;
-        }
-
-        extractedPaths.push({
-          id: rawId || `path-${index}`,
-          d: p.getAttribute("d") || "",
-          countryCode,
-        });
-      });
-
-      setFlagsSvgPaths(extractedPaths);
-      const availableCountryCodes = Array.from(
-        new Set(
-          extractedPaths
-            .map((path) => path.countryCode)
-            .filter((code): code is string => !!code),
-        ),
-      );
-      setFlagsAvailableCodes(availableCountryCodes);
-      const order = shuffle(availableCountryCodes).slice(
+      setFlagsCountriesByCode(data.countriesByCode);
+      setFlagsSvgPaths(data.paths);
+      setFlagsBaseViewBox(data.viewBox);
+      setFlagsAvailableCodes(data.availableCodes);
+      const order = shuffle(data.availableCodes).slice(
         0,
-        Math.min(20, availableCountryCodes.length),
+        Math.min(20, data.availableCodes.length),
       );
       setFlagsQuestionOrder(order);
-
-      const tempHost = document.createElement("div");
-      tempHost.style.position = "absolute";
-      tempHost.style.left = "-10000px";
-      tempHost.style.top = "0";
-      tempHost.style.width = "1px";
-      tempHost.style.height = "1px";
-      tempHost.style.overflow = "visible";
-      tempHost.style.visibility = "hidden";
-      document.body.appendChild(tempHost);
-
-      try {
-        const importedSvg = document.importNode(svgForBBox, true);
-        importedSvg.setAttribute("width", "1000");
-        importedSvg.setAttribute("height", "1000");
-        tempHost.appendChild(importedSvg);
-
-        const bboxTarget =
-          importedSvg.querySelector("g") ?? (importedSvg as SVGGraphicsElement);
-        const bbox = (bboxTarget as SVGGraphicsElement).getBBox();
-        const padX = bbox.width * 0.05;
-        const padY = bbox.height * 0.05;
-        setFlagsBaseViewBox(
-          `${bbox.x - padX} ${bbox.y - padY} ${bbox.width + padX * 2} ${bbox.height + padY * 2}`,
-        );
-      } finally {
-        tempHost.remove();
-      }
     } finally {
       setFlagsMapLoading(false);
     }
@@ -1029,7 +1247,7 @@ export default function QuizPage() {
 
   const flagsTargetCode = flagsQuestionOrder[flagsQuestionIndex] ?? null;
   const flagsTargetCountry = flagsTargetCode
-    ? (allCountriesByCode.get(flagsTargetCode) ?? null)
+    ? (flagsCountriesByCode.get(flagsTargetCode) ?? null)
     : null;
 
   const handleFlagGuess = (countryCode: string) => {
@@ -1046,7 +1264,8 @@ export default function QuizPage() {
       setFlagsScore((prev) => prev + 1);
     }
 
-    const guessName = allCountriesByCode.get(countryCode)?.name.common ?? null;
+    const guessName =
+      flagsCountriesByCode.get(countryCode)?.name.common ?? null;
     const targetName = flagsTargetCountry?.name.common ?? null;
     if (!guessName || !targetName) return;
 
@@ -1088,12 +1307,20 @@ export default function QuizPage() {
   const currentCapitalContinent = capitalsContinentId
     ? findContinentById(capitalsContinentId)
     : null;
+  const currentFlagsContinent = flagsContinentId
+    ? findContinentById(flagsContinentId)
+    : null;
+  const continentLastGuessName =
+    findContinentById(continentLastGuessId ?? "")?.name ??
+    "a different continent";
 
   const showLanding = mode === "landing";
   const showContinents = mode === "continents";
   const showCountries = mode === "countries";
   const showFlags = mode === "flags";
   const showCapitals = mode === "capitals";
+  const landingPreviewReady = !!svgText && !!codeToContinent;
+  const flagsPreviewReady = previewFlagCountries.length > 0;
 
   return (
     <div className="flex w-full flex-col gap-6 md:gap-8">
@@ -1109,20 +1336,33 @@ export default function QuizPage() {
       </header>
 
       {showLanding ? (
-        <section className="grid w-full grid-cols-1 gap-4 md:grid-cols-4">
+        <section className="grid w-full grid-cols-1 gap-4 md:grid-cols-2">
           <button
             type="button"
             onClick={startContinentsQuiz}
-            className="rounded-3xl bg-white p-6 text-left shadow-sm ring-1 ring-slate-900/10 outline-none transition-all hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:outline-none active:translate-y-0"
+            className="group overflow-hidden rounded-3xl bg-white text-left shadow-sm ring-1 ring-slate-900/10 outline-none transition-all hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:outline-none active:translate-y-0"
           >
-            <div className="text-sm font-semibold text-slate-600">
-              Continents
+            <div className="relative h-40 w-full bg-slate-50 md:h-44">
+              {landingPreviewReady ? (
+                <WorldSvgPreview svgText={svgText ?? ""} />
+              ) : (
+                <div className="flex h-full w-full flex-col items-center justify-center gap-2 p-6 text-center">
+                  <div className="text-sm font-semibold text-slate-700">
+                    Preview loading…
+                  </div>
+                  <div className="text-xs text-slate-500">
+                    World map preview
+                  </div>
+                </div>
+              )}
             </div>
-            <div className="mt-2 text-2xl font-bold text-slate-900">
-              Find the continent
-            </div>
-            <div className="mt-2 text-sm text-slate-600">
-              6 questions • 1 point each
+            <div className="p-5">
+              <div className="text-sm font-semibold text-slate-600">
+                Continents
+              </div>
+              <div className="mt-2 text-2xl font-bold text-slate-900">
+                Find the continent
+              </div>
             </div>
           </button>
 
@@ -1132,16 +1372,33 @@ export default function QuizPage() {
               setMode("countries");
               setSelectedContinentId(null);
             }}
-            className="rounded-3xl bg-white p-6 text-left shadow-sm ring-1 ring-slate-900/10 outline-none transition-all hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:outline-none active:translate-y-0"
+            className="group overflow-hidden rounded-3xl bg-white text-left shadow-sm ring-1 ring-slate-900/10 outline-none transition-all hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:outline-none active:translate-y-0"
           >
-            <div className="text-sm font-semibold text-slate-600">
-              Countries
+            <div className="relative h-40 w-full bg-slate-50 md:h-44">
+              {landingPreviewReady ? (
+                <EuropeHighlightPreview
+                  svgText={svgText ?? ""}
+                  codeToContinent={codeToContinent ?? new Map()}
+                  highlightCode="gb"
+                />
+              ) : (
+                <div className="flex h-full w-full flex-col items-center justify-center gap-2 p-6 text-center">
+                  <div className="text-sm font-semibold text-slate-700">
+                    Preview loading…
+                  </div>
+                  <div className="text-xs text-slate-500">
+                    Europe map preview
+                  </div>
+                </div>
+              )}
             </div>
-            <div className="mt-2 text-2xl font-bold text-slate-900">
-              Find the country
-            </div>
-            <div className="mt-2 text-sm text-slate-600">
-              Pick a continent first
+            <div className="p-5">
+              <div className="text-sm font-semibold text-slate-600">
+                Countries
+              </div>
+              <div className="mt-2 text-2xl font-bold text-slate-900">
+                Find the country
+              </div>
             </div>
           </button>
 
@@ -1151,30 +1408,117 @@ export default function QuizPage() {
               setMode("capitals");
               setCapitalsContinentId(null);
             }}
-            className="rounded-3xl bg-white p-6 text-left shadow-sm ring-1 ring-slate-900/10 outline-none transition-all hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:outline-none active:translate-y-0"
+            className="group overflow-hidden rounded-3xl bg-white text-left shadow-sm ring-1 ring-slate-900/10 outline-none transition-all hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:outline-none active:translate-y-0"
           >
-            <div className="text-sm font-semibold text-slate-600">Capitals</div>
-            <div className="mt-2 text-2xl font-bold text-slate-900">
-              Name the capital
+            <div className="relative flex h-40 w-full items-center justify-center bg-slate-50 md:h-44">
+              {previewCapitalCountry ? (
+                <div className="flex flex-col items-center gap-2 px-6 text-center">
+                  <div className="flex items-center gap-3">
+                    <div className="relative h-9 w-14 overflow-hidden rounded-md ring-1 ring-slate-900/10">
+                      <Image
+                        src={
+                          previewCapitalCountry.flags.svg ||
+                          previewCapitalCountry.flags.png
+                        }
+                        alt={
+                          previewCapitalCountry.flags.alt ??
+                          `Flag of ${previewCapitalCountry.name.common}`
+                        }
+                        fill
+                        sizes="56px"
+                        className="object-cover"
+                      />
+                    </div>
+                    <div className="text-lg font-bold text-slate-900">
+                      {previewCapitalCountry.name.common}
+                    </div>
+                  </div>
+                  {previewCapitalName ? (
+                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700">
+                      {previewCapitalName}
+                    </div>
+                  ) : (
+                    <div className="h-8 w-32 rounded-2xl bg-slate-200" />
+                  )}
+                </div>
+              ) : (
+                <div className="flex h-full w-full flex-col items-center justify-center gap-2 p-6 text-center">
+                  <div className="text-sm font-semibold text-slate-700">
+                    Preview loading…
+                  </div>
+                  <div className="text-xs text-slate-500">Capital preview</div>
+                </div>
+              )}
             </div>
-            <div className="mt-2 text-sm text-slate-600">
-              Pick a continent first
+            <div className="p-5">
+              <div className="text-sm font-semibold text-slate-600">
+                Capitals
+              </div>
+              <div className="mt-2 text-2xl font-bold text-slate-900">
+                Name the capital
+              </div>
             </div>
           </button>
 
           <button
             type="button"
             onClick={() => {
-              void startFlagsQuiz();
+              setMode("flags");
+              setFlagsContinentId(null);
             }}
-            className="rounded-3xl bg-white p-6 text-left shadow-sm ring-1 ring-slate-900/10 outline-none transition-all hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:outline-none active:translate-y-0"
+            className="group overflow-hidden rounded-3xl bg-white text-left shadow-sm ring-1 ring-slate-900/10 outline-none transition-all hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:outline-none active:translate-y-0"
           >
-            <div className="text-sm font-semibold text-slate-600">Flags</div>
-            <div className="mt-2 text-2xl font-bold text-slate-900">
-              Match the flag
+            <div className="relative h-40 w-full overflow-hidden bg-slate-50 md:h-44">
+              {flagsPreviewReady ? (
+                <div className="relative h-full w-full">
+                  {previewFlagCountries.map((country, index) => {
+                    const flagSrc = country.flags.svg || country.flags.png;
+                    const offset =
+                      (previewFlagCountries.length - 1 - index) * 6;
+                    const shadowClass =
+                      index === previewFlagCountries.length - 1
+                        ? "shadow-lg"
+                        : "shadow-sm";
+                    return (
+                      <div
+                        key={`${country.cca2}-${index}`}
+                        className="absolute inset-0"
+                        style={{
+                          transform: `translate(${offset}px, ${offset}px)`,
+                        }}
+                      >
+                        <div
+                          className={`h-full w-full overflow-hidden rounded-2xl ring-1 ring-slate-900/10 ${shadowClass}`}
+                        >
+                          <Image
+                            src={flagSrc}
+                            alt={
+                              country.flags.alt ??
+                              `Flag of ${country.name.common}`
+                            }
+                            fill
+                            sizes="240px"
+                            className="object-cover"
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="flex h-full w-full flex-col items-center justify-center gap-2 p-6 text-center">
+                  <div className="text-sm font-semibold text-slate-700">
+                    Preview loading…
+                  </div>
+                  <div className="text-xs text-slate-500">Flags preview</div>
+                </div>
+              )}
             </div>
-            <div className="mt-2 text-sm text-slate-600">
-              First to 10 points
+            <div className="p-5">
+              <div className="text-sm font-semibold text-slate-600">Flags</div>
+              <div className="mt-2 text-2xl font-bold text-slate-900">
+                Match the flag
+              </div>
             </div>
           </button>
         </section>
@@ -1234,7 +1578,7 @@ export default function QuizPage() {
                             `Where is ${continentsTarget?.name ?? "this continent"}?`,
                           );
                         }}
-                        className="text-left"
+                        className="cursor-pointer text-left"
                       >
                         Where is {continentsTarget?.name ?? "…"}?
                       </button>
@@ -1244,22 +1588,39 @@ export default function QuizPage() {
                         {continentLastGuessId === continentsTarget.id ? (
                           <>
                             <ResultBadge variant="correct" />
-                            <div className="text-base font-extrabold text-emerald-700">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                speakText("Correct!");
+                              }}
+                              className="cursor-pointer text-left text-base font-extrabold text-emerald-700"
+                            >
                               Correct!
-                            </div>
+                            </button>
                           </>
                         ) : (
                           <>
                             <ResultBadge variant="wrong" />
-                            <div className="text-base font-extrabold text-rose-700">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                speakText("Not quite!");
+                              }}
+                              className="cursor-pointer text-left text-base font-extrabold text-rose-700"
+                            >
                               Not quite!
-                            </div>
-                            <div className="text-sm font-semibold text-slate-700">
-                              That was{" "}
-                              {findContinentById(continentLastGuessId ?? "")
-                                ?.name ?? "a different continent"}
-                              .
-                            </div>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                speakText(
+                                  `That was ${continentLastGuessName}.`,
+                                );
+                              }}
+                              className="cursor-pointer text-left text-sm font-semibold text-slate-700"
+                            >
+                              That was {continentLastGuessName}.
+                            </button>
                           </>
                         )}
                       </div>
@@ -1390,7 +1751,7 @@ export default function QuizPage() {
                                 `Where is ${countriesTargetCountry?.name.common ?? "this country"}?`,
                               );
                             }}
-                            className="text-left"
+                            className="cursor-pointer text-left"
                           >
                             Where is{" "}
                             {countriesTargetCountry?.name.common ?? "…"}?
@@ -1402,19 +1763,39 @@ export default function QuizPage() {
                           {countryLastGuessCode === countriesTargetCode ? (
                             <>
                               <ResultBadge variant="correct" />
-                              <div className="text-base font-extrabold text-emerald-700">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  speakText("Correct!");
+                                }}
+                                className="cursor-pointer text-left text-base font-extrabold text-emerald-700"
+                              >
                                 Correct!
-                              </div>
+                              </button>
                             </>
                           ) : (
                             <>
                               <ResultBadge variant="wrong" />
-                              <div className="text-base font-extrabold text-rose-700">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  speakText("Not quite!");
+                                }}
+                                className="cursor-pointer text-left text-base font-extrabold text-rose-700"
+                              >
                                 Not quite!
-                              </div>
-                              <div className="text-sm font-semibold text-slate-700">
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  speakText(
+                                    "The correct country is highlighted.",
+                                  );
+                                }}
+                                className="cursor-pointer text-left text-sm font-semibold text-slate-700"
+                              >
                                 The correct country is highlighted.
-                              </div>
+                              </button>
                             </>
                           )}
                         </div>
@@ -1645,7 +2026,7 @@ export default function QuizPage() {
                                 `What is the capital of ${capitalsTargetCountry?.name.common ?? "this country"}?`,
                               );
                             }}
-                            className="text-left"
+                            className="cursor-pointer text-left"
                           >
                             What is the capital of{" "}
                             {capitalsTargetCountry?.name.common ?? "…"}?
@@ -1657,20 +2038,41 @@ export default function QuizPage() {
                           {capitalsLastGuess === capitalsTargetCapital ? (
                             <>
                               <ResultBadge variant="correct" />
-                              <div className="text-base font-extrabold text-emerald-700">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  speakText("Correct!");
+                                }}
+                                className="cursor-pointer text-left text-base font-extrabold text-emerald-700"
+                              >
                                 Correct!
-                              </div>
+                              </button>
                             </>
                           ) : (
                             <>
                               <ResultBadge variant="wrong" />
-                              <div className="text-base font-extrabold text-rose-700">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  speakText("Not quite!");
+                                }}
+                                className="cursor-pointer text-left text-base font-extrabold text-rose-700"
+                              >
                                 Not quite!
-                              </div>
-                              <div className="text-sm font-semibold text-slate-700">
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (!capitalsTargetCapital) return;
+                                  speakText(
+                                    `${capitalsTargetCapital} is the capital of ${capitalsTargetCountry.name.common}.`,
+                                  );
+                                }}
+                                className="cursor-pointer text-left text-sm font-semibold text-slate-700"
+                              >
                                 {capitalsTargetCapital ?? "That"} is the capital
                                 of {capitalsTargetCountry.name.common}.
-                              </div>
+                              </button>
                             </>
                           )}
                         </div>
@@ -1788,196 +2190,225 @@ export default function QuizPage() {
 
       {showFlags ? (
         <section className="flex w-full flex-col gap-4">
-          <div className="overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-slate-900/10">
-            <div className="flex flex-col gap-3 border-b border-slate-200/60 bg-slate-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex flex-col gap-1">
-                <div className="text-sm font-semibold text-slate-700">
-                  Flags quiz
+          {!flagsContinentId ? (
+            <div className="flex flex-col gap-4">
+              <CountryContinentPicker
+                svgText={svgText}
+                codeToContinent={codeToContinent}
+                onSelect={(id) => {
+                  void startFlagsQuizForContinent(id);
+                }}
+              />
+            </div>
+          ) : (
+            <div className="overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-slate-900/10">
+              <div className="flex flex-col gap-3 border-b border-slate-200/60 bg-slate-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-1">
+                  <div className="text-sm font-semibold text-slate-700">
+                    {currentFlagsContinent?.name ?? "Flags"} quiz
+                  </div>
+                  <div className="text-sm text-slate-600">
+                    Score: {flagsScore}/{scoreGoal}
+                  </div>
                 </div>
-                <div className="text-sm text-slate-600">
-                  Score: {flagsScore}/{scoreGoal}
-                </div>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    void startFlagsQuiz();
-                  }}
-                  className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-slate-900/10 outline-none hover:bg-slate-50 focus:outline-none focus-visible:outline-none active:bg-slate-100"
-                >
-                  Restart
-                </button>
-                {!flagsDone ? (
+                <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
-                    onClick={nextFlagQuestion}
-                    disabled={!flagsAnswered}
-                    className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-slate-900/10 outline-none hover:bg-slate-800 focus:outline-none focus-visible:outline-none disabled:cursor-not-allowed disabled:bg-slate-400"
+                    onClick={() => {
+                      setFlagsContinentId(null);
+                      setFlagsQuestionOrder([]);
+                      setFlagsSvgPaths([]);
+                      setFlagsAnswered(false);
+                      setFlagsRevealCode(null);
+                      setFlagsLastGuessCode(null);
+                      setFlagsAvailableCodes([]);
+                    }}
+                    className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-slate-900/10 outline-none hover:bg-slate-50 focus:outline-none focus-visible:outline-none active:bg-slate-100"
                   >
-                    Next
+                    Change continent
                   </button>
-                ) : null}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!flagsContinentId) return;
+                      void startFlagsQuizForContinent(flagsContinentId);
+                    }}
+                    className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-slate-900/10 outline-none hover:bg-slate-50 focus:outline-none focus-visible:outline-none active:bg-slate-100"
+                  >
+                    Restart
+                  </button>
+                  {!flagsDone ? (
+                    <button
+                      type="button"
+                      onClick={nextFlagQuestion}
+                      disabled={!flagsAnswered}
+                      className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-slate-900/10 outline-none hover:bg-slate-800 focus:outline-none focus-visible:outline-none disabled:cursor-not-allowed disabled:bg-slate-400"
+                    >
+                      Next
+                    </button>
+                  ) : null}
+                </div>
               </div>
-            </div>
 
-            <div className="p-4 md:p-6">
-              <div className="mb-4 rounded-2xl bg-slate-50 p-4 text-slate-900 ring-1 ring-slate-900/10">
-                {flagsDone ? (
-                  <>
-                    <div className="text-sm font-semibold text-slate-600">
-                      Congratulations!
-                    </div>
-                    <div className="mt-1 text-2xl font-bold">
-                      Score: {flagsScore}/{scoreGoal}
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="mt-1 flex flex-wrap items-center gap-3">
-                      {flagsTargetCountry ? (
-                        <div className="relative h-10 w-16 overflow-hidden rounded-md ring-1 ring-slate-900/10">
-                          <Image
-                            src={
-                              flagsTargetCountry.flags.svg ||
-                              flagsTargetCountry.flags.png
-                            }
-                            alt={
-                              flagsTargetCountry.flags.alt ??
-                              `Flag of ${flagsTargetCountry.name.common}`
-                            }
-                            fill
-                            sizes="64px"
-                            className="object-cover"
+              <div className="p-4 md:p-6">
+                <div className="mb-4 rounded-2xl bg-slate-50 p-4 text-slate-900 ring-1 ring-slate-900/10">
+                  {flagsDone ? (
+                    <>
+                      <div className="text-sm font-semibold text-slate-600">
+                        Congratulations!
+                      </div>
+                      <div className="mt-1 text-2xl font-bold">
+                        Score: {flagsScore}/{scoreGoal}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="mt-1 flex flex-wrap items-center gap-3">
+                        {flagsTargetCountry ? (
+                          <div className="relative h-10 w-16 overflow-hidden rounded-md ring-1 ring-slate-900/10">
+                            <Image
+                              src={
+                                flagsTargetCountry.flags.svg ||
+                                flagsTargetCountry.flags.png
+                              }
+                              alt={
+                                flagsTargetCountry.flags.alt ??
+                                `Flag of ${flagsTargetCountry.name.common}`
+                              }
+                              fill
+                              sizes="64px"
+                              className="object-cover"
+                            />
+                          </div>
+                        ) : (
+                          <div
+                            className="h-10 w-16 rounded-md bg-slate-200"
+                            aria-hidden="true"
                           />
+                        )}
+                        <div className="text-2xl font-bold">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              speakText("Which country has this flag?");
+                            }}
+                            className="cursor-pointer text-left"
+                          >
+                            Which country has this flag?
+                          </button>
+                        </div>
+                      </div>
+
+                      {flagsAnswered && flagsTargetCountry ? (
+                        <div className="mt-3 flex flex-wrap items-center gap-3">
+                          {flagsLastGuessCode === flagsTargetCode ? (
+                            <>
+                              <ResultBadge variant="correct" />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  speakText("Correct!");
+                                }}
+                                className="cursor-pointer text-left text-base font-extrabold text-emerald-700"
+                              >
+                                Correct!
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <ResultBadge variant="wrong" />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  speakText("Not quite!");
+                                }}
+                                className="cursor-pointer text-left text-base font-extrabold text-rose-700"
+                              >
+                                Not quite!
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  speakText(
+                                    `${flagsTargetCountry.name.common} is highlighted.`,
+                                  );
+                                }}
+                                className="cursor-pointer text-left text-sm font-semibold text-slate-700"
+                              >
+                                {flagsTargetCountry.name.common} is highlighted.
+                              </button>
+                            </>
+                          )}
                         </div>
                       ) : (
-                        <div
-                          className="h-10 w-16 rounded-md bg-slate-200"
-                          aria-hidden="true"
-                        />
+                        <div className="mt-2 text-sm text-slate-600">
+                          Tap the country on the map.
+                        </div>
                       )}
-                      <div className="text-2xl font-bold">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            speakText("Which country has this flag?");
-                          }}
-                          className="text-left"
-                        >
-                          Which country has this flag?
-                        </button>
-                      </div>
-                    </div>
+                    </>
+                  )}
+                </div>
 
-                    {flagsAnswered && flagsTargetCountry ? (
-                      <div className="mt-3 flex flex-wrap items-center gap-3">
-                        {flagsLastGuessCode === flagsTargetCode ? (
-                          <>
-                            <ResultBadge variant="correct" />
-                            <div className="text-base font-extrabold text-emerald-700">
-                              Correct!
-                            </div>
-                          </>
-                        ) : (
-                          <>
-                            <ResultBadge variant="wrong" />
-                            <div className="text-base font-extrabold text-rose-700">
-                              Not quite!
-                            </div>
-                            <div className="text-sm font-semibold text-slate-700">
-                              {flagsTargetCountry.name.common} is highlighted.
-                            </div>
-                          </>
-                        )}
+                {!flagsDone ? (
+                  <div className="relative h-[55vh] w-full overflow-hidden rounded-2xl bg-slate-100 md:h-[70vh] lg:h-[75vh]">
+                    {flagsMapLoading ? (
+                      <div className="flex h-full w-full items-center justify-center">
+                        <div className="h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-slate-600" />
                       </div>
                     ) : (
-                      <div className="mt-2 text-sm text-slate-600">
-                        Tap the country on the map.
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
+                      <ZoomableSvg
+                        key={flagsBaseViewBox}
+                        baseViewBox={flagsBaseViewBox}
+                        ariaLabel="Flags quiz map"
+                        className="h-full w-full touch-none"
+                      >
+                        {flagsSvgPaths.map((pathData, index) => {
+                          const code = pathData.countryCode;
+                          const country = code
+                            ? flagsCountriesByCode.get(code)
+                            : null;
+                          const isCorrect = !!code && code === flagsRevealCode;
+                          const isWrongGuess =
+                            !!code &&
+                            flagsAnswered &&
+                            code === flagsLastGuessCode &&
+                            flagsLastGuessCode !== flagsRevealCode;
 
-              {!flagsDone ? (
-                <div className="relative h-[55vh] w-full overflow-hidden rounded-2xl bg-slate-100 md:h-[70vh] lg:h-[75vh]">
-                  {flagsMapLoading ? (
-                    <div className="flex h-full w-full items-center justify-center">
-                      <div className="h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-slate-600" />
-                    </div>
-                  ) : (
-                    <ZoomableSvg
-                      key={flagsBaseViewBox}
-                      baseViewBox={flagsBaseViewBox}
-                      ariaLabel="Flags quiz map"
-                      className="h-full w-full touch-none"
-                    >
-                      {flagsSvgPaths.map((pathData, index) => {
-                        const code = pathData.countryCode;
-                        const country = code
-                          ? allCountriesByCode.get(code)
-                          : null;
-                        const isCorrect = !!code && code === flagsRevealCode;
-                        const isWrongGuess =
-                          !!code &&
-                          flagsAnswered &&
-                          code === flagsLastGuessCode &&
-                          flagsLastGuessCode !== flagsRevealCode;
+                          const fill = isCorrect
+                            ? "#86efac"
+                            : isWrongGuess
+                              ? "#fecdd3"
+                              : country
+                                ? "#cbd5e1"
+                                : "#e2e8f0";
+                          const stroke = isCorrect
+                            ? "#16a34a"
+                            : isWrongGuess
+                              ? "#e11d48"
+                              : "#ffffff";
+                          const strokeWidth =
+                            isCorrect || isWrongGuess ? 1.6 : 0.6;
 
-                        const fill = isCorrect
-                          ? "#86efac"
-                          : isWrongGuess
-                            ? "#fecdd3"
-                            : country
-                              ? "#cbd5e1"
-                              : "#e2e8f0";
-                        const stroke = isCorrect
-                          ? "#16a34a"
-                          : isWrongGuess
-                            ? "#e11d48"
-                            : "#ffffff";
-                        const strokeWidth =
-                          isCorrect || isWrongGuess ? 1.6 : 0.6;
-
-                        return (
-                          <path
-                            key={`${pathData.id}-${index}`}
-                            d={pathData.d}
-                            fill={fill}
-                            stroke={stroke}
-                            strokeWidth={strokeWidth}
-                            role={country ? "button" : undefined}
-                            aria-label={
-                              country ? country.name.common : undefined
-                            }
-                            tabIndex={country ? 0 : -1}
-                            className={
-                              country
-                                ? "cursor-pointer outline-none focus:outline-none focus-visible:outline-none"
-                                : undefined
-                            }
-                            style={country ? { outline: "none" } : undefined}
-                            onClick={(event) => {
-                              if (!country || !code) return;
-                              if (flagsAnswered) {
-                                if (
-                                  code !== flagsRevealCode &&
-                                  code !== flagsLastGuessCode
-                                ) {
-                                  return;
-                                }
-                                speakText(country.name.common);
-                                (event.currentTarget as SVGPathElement).blur();
-                                return;
+                          return (
+                            <path
+                              key={`${pathData.id}-${index}`}
+                              d={pathData.d}
+                              fill={fill}
+                              stroke={stroke}
+                              strokeWidth={strokeWidth}
+                              role={country ? "button" : undefined}
+                              aria-label={
+                                country ? country.name.common : undefined
                               }
-                              handleFlagGuess(code);
-                              (event.currentTarget as SVGPathElement).blur();
-                            }}
-                            onKeyDown={(event) => {
-                              if (!country || !code) return;
-                              if (event.key === "Enter" || event.key === " ") {
-                                event.preventDefault();
+                              tabIndex={country ? 0 : -1}
+                              className={
+                                country
+                                  ? "cursor-pointer outline-none focus:outline-none focus-visible:outline-none"
+                                  : undefined
+                              }
+                              style={country ? { outline: "none" } : undefined}
+                              onClick={(event) => {
+                                if (!country || !code) return;
                                 if (flagsAnswered) {
                                   if (
                                     code !== flagsRevealCode &&
@@ -1986,20 +2417,44 @@ export default function QuizPage() {
                                     return;
                                   }
                                   speakText(country.name.common);
+                                  (
+                                    event.currentTarget as SVGPathElement
+                                  ).blur();
                                   return;
                                 }
                                 handleFlagGuess(code);
-                              }
-                            }}
-                          />
-                        );
-                      })}
-                    </ZoomableSvg>
-                  )}
-                </div>
-              ) : null}
+                                (event.currentTarget as SVGPathElement).blur();
+                              }}
+                              onKeyDown={(event) => {
+                                if (!country || !code) return;
+                                if (
+                                  event.key === "Enter" ||
+                                  event.key === " "
+                                ) {
+                                  event.preventDefault();
+                                  if (flagsAnswered) {
+                                    if (
+                                      code !== flagsRevealCode &&
+                                      code !== flagsLastGuessCode
+                                    ) {
+                                      return;
+                                    }
+                                    speakText(country.name.common);
+                                    return;
+                                  }
+                                  handleFlagGuess(code);
+                                }
+                              }}
+                            />
+                          );
+                        })}
+                      </ZoomableSvg>
+                    )}
+                  </div>
+                ) : null}
+              </div>
             </div>
-          </div>
+          )}
         </section>
       ) : null}
     </div>
