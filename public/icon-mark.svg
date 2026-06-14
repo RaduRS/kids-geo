@@ -1,0 +1,50 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="64" y1="48" x2="448" y2="468" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#38bdf8"/>
+      <stop offset="1" stop-color="#0369a1"/>
+    </linearGradient>
+    <radialGradient id="ocean" cx="0.4" cy="0.32" r="0.8">
+      <stop stop-color="#e0f2fe"/>
+      <stop offset="0.55" stop-color="#bae6fd"/>
+      <stop offset="1" stop-color="#7dd3fc"/>
+    </radialGradient>
+    <clipPath id="globe"><circle cx="256" cy="256" r="148"/></clipPath>
+  </defs>
+
+  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+
+  <!-- soft halo -->
+  <circle cx="256" cy="256" r="172" fill="#ffffff" opacity="0.14"/>
+
+  <!-- globe ocean -->
+  <circle cx="256" cy="256" r="148" fill="url(#ocean)"/>
+
+  <g clip-path="url(#globe)">
+    <!-- grid -->
+    <g stroke="#38bdf8" stroke-opacity="0.30" stroke-width="4" fill="none">
+      <ellipse cx="256" cy="256" rx="148" ry="56"/>
+      <ellipse cx="256" cy="256" rx="148" ry="112"/>
+      <ellipse cx="256" cy="256" rx="56" ry="148"/>
+      <ellipse cx="256" cy="256" rx="112" ry="148"/>
+      <line x1="108" y1="256" x2="404" y2="256"/>
+    </g>
+
+    <!-- stylized continents -->
+    <g fill="#34d399">
+      <!-- Americas-ish -->
+      <path d="M190 148c-20 4-34 20-30 40 3 14-8 22-2 38 5 14-6 26 8 38 12 10 10 28 26 30 14 2 16-16 12-30 12-12 6-28 16-38 8-8 4-24-4-32 8-14-2-36-20-42-2-1-4-2-6-2z"/>
+      <!-- Africa/Eurasia-ish -->
+      <path d="M312 156c-18 2-26 18-20 34-14 6-16 26-4 38 10 10 8 28 24 34 16 6 30-6 30-24 16-6 24-26 14-42 8-16-4-38-24-40-6-2-13-1-20 0z"/>
+      <!-- small islands -->
+      <circle cx="300" cy="330" r="14"/>
+      <circle cx="332" cy="346" r="9"/>
+    </g>
+
+    <!-- shine -->
+    <ellipse cx="206" cy="196" rx="60" ry="36" fill="#ffffff" opacity="0.35" transform="rotate(-28 206 196)"/>
+  </g>
+
+  <!-- globe rim -->
+  <circle cx="256" cy="256" r="148" fill="none" stroke="#ffffff" stroke-width="12" stroke-opacity="0.95"/>
+</svg>

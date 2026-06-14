@@ -21,12 +21,9 @@ export const metadata: Metadata = {
   description:
     "Tablet-first geography game for kids with interactive world map and PWA support.",
   manifest: "/manifest.webmanifest",
-  icons: {
-    icon: [
-      { url: "/favicon.ico", type: "image/x-icon" },
-      { url: "/flag.svg", type: "image/svg+xml" },
-    ],
-  },
+  // Icons are provided via the App Router file conventions (app/icon.svg,
+  // app/apple-icon.png, app/favicon.ico). Next emits them with content-hashed
+  // URLs, so updated artwork busts the browser cache automatically.
 };
 
 export const viewport = {
@@ -52,13 +49,13 @@ export default function RootLayout({
                 className="flex items-center gap-3 rounded-2xl outline-none focus:outline-none focus-visible:outline-none"
                 aria-label="Go to world map"
               >
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-linear-to-br from-emerald-400 via-sky-500 to-fuchsia-500 shadow-sm shadow-slate-900/10 ring-2 ring-white/80">
+                <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl shadow-sm shadow-slate-900/10 ring-2 ring-white/80">
                   <Image
-                    src="/flag.svg"
+                    src="/icon-mark.svg"
                     alt=""
-                    width={22}
-                    height={22}
-                    className="h-6 w-6 opacity-100"
+                    width={40}
+                    height={40}
+                    className="h-10 w-10"
                     priority
                   />
                 </div>

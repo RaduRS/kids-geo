@@ -1,6 +1,8 @@
-const CACHE_NAME = "kids-geo-v1";
+// Bumping this version purges all previously cached assets (including the old
+// app icon) on the next visit via the activate handler below.
+const CACHE_NAME = "kids-geo-v2";
 
-const PRECACHE_URLS = ["/", "/favicon.ico"];
+const PRECACHE_URLS = ["/"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
