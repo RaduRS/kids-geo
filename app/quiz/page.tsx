@@ -1,8 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { ZoomableSvg } from "@/app/components/zoomable-svg";
+import { CountryFlag } from "@/app/components/country-flag";
 import { WorldMap } from "@/app/components/world-map";
 import { getCountries, type Country } from "@/lib/api/countries";
 import {
@@ -1415,7 +1415,7 @@ export default function QuizPage() {
                 <div className="flex flex-col items-center gap-2 px-6 text-center">
                   <div className="flex items-center gap-3">
                     <div className="relative h-9 w-14 overflow-hidden rounded-md ring-1 ring-slate-900/10">
-                      <Image
+                      <CountryFlag
                         src={
                           previewCapitalCountry.flags.svg ||
                           previewCapitalCountry.flags.png
@@ -1424,9 +1424,8 @@ export default function QuizPage() {
                           previewCapitalCountry.flags.alt ??
                           `Flag of ${previewCapitalCountry.name.common}`
                         }
-                        fill
+                        code={previewCapitalCountry.cca2}
                         sizes="56px"
-                        className="object-cover"
                       />
                     </div>
                     <div className="text-lg font-bold text-slate-900">
@@ -1491,15 +1490,14 @@ export default function QuizPage() {
                         <div
                           className={`relative h-full w-full overflow-hidden rounded-2xl ring-1 ring-slate-900/10 ${shadowClass}`}
                         >
-                          <Image
+                          <CountryFlag
                             src={flagSrc}
                             alt={
                               country.flags.alt ??
                               `Flag of ${country.name.common}`
                             }
-                            fill
+                            code={country.cca2}
                             sizes="240px"
-                            className="object-cover"
                           />
                         </div>
                       </div>
@@ -1724,7 +1722,7 @@ export default function QuizPage() {
                       <div className="mt-1 flex flex-wrap items-center gap-3">
                         {countriesTargetCountry ? (
                           <div className="relative h-8 w-12 overflow-hidden rounded-md ring-1 ring-slate-900/10">
-                            <Image
+                            <CountryFlag
                               src={
                                 countriesTargetCountry.flags.svg ||
                                 countriesTargetCountry.flags.png
@@ -1733,9 +1731,8 @@ export default function QuizPage() {
                                 countriesTargetCountry.flags.alt ??
                                 `Flag of ${countriesTargetCountry.name.common}`
                               }
-                              fill
+                              code={countriesTargetCountry.cca2}
                               sizes="48px"
-                              className="object-cover"
                             />
                           </div>
                         ) : (
@@ -1999,7 +1996,7 @@ export default function QuizPage() {
                       <div className="mt-1 flex flex-wrap items-center gap-3">
                         {capitalsTargetCountry ? (
                           <div className="relative h-8 w-12 overflow-hidden rounded-md ring-1 ring-slate-900/10">
-                            <Image
+                            <CountryFlag
                               src={
                                 capitalsTargetCountry.flags.svg ||
                                 capitalsTargetCountry.flags.png
@@ -2008,9 +2005,8 @@ export default function QuizPage() {
                                 capitalsTargetCountry.flags.alt ??
                                 `Flag of ${capitalsTargetCountry.name.common}`
                               }
-                              fill
+                              code={capitalsTargetCountry.cca2}
                               sizes="48px"
-                              className="object-cover"
                             />
                           </div>
                         ) : (
@@ -2088,7 +2084,7 @@ export default function QuizPage() {
 
                 {!capitalsDone ? (
                   <>
-                    <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
                       {capitalsOptions.map((capital) => {
                         const isSelected = capitalsSelectedAnswer === capital;
                         const isCorrect =
@@ -2104,7 +2100,7 @@ export default function QuizPage() {
                             ? "rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-left text-base font-semibold text-rose-700"
                             : isSelected
                               ? "rounded-2xl border border-slate-900 bg-slate-900 px-4 py-3 text-left text-base font-semibold text-white"
-                              : "rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-base font-semibold text-slate-900 transition-colors hover:bg-slate-50";
+                              : "rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-left text-base font-semibold text-slate-900 transition-colors hover:bg-slate-50 active:bg-slate-100";
 
                         return (
                           <button
@@ -2124,7 +2120,7 @@ export default function QuizPage() {
                         type="button"
                         onClick={handleCapitalSubmit}
                         disabled={!capitalsSelectedAnswer || capitalsAnswered}
-                        className="rounded-full bg-slate-900 px-5 py-2 text-sm font-semibold text-white shadow-sm shadow-slate-900/10 outline-none hover:bg-slate-800 focus:outline-none focus-visible:outline-none disabled:cursor-not-allowed disabled:bg-slate-400"
+                        className="h-12 rounded-full bg-slate-900 px-7 text-base font-semibold text-white shadow-sm shadow-slate-900/10 outline-none hover:bg-slate-800 active:bg-slate-700 focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-400"
                       >
                         Submit
                       </button>
@@ -2267,7 +2263,7 @@ export default function QuizPage() {
                       <div className="mt-1 flex flex-wrap items-center gap-3">
                         {flagsTargetCountry ? (
                           <div className="relative h-10 w-16 overflow-hidden rounded-md ring-1 ring-slate-900/10">
-                            <Image
+                            <CountryFlag
                               src={
                                 flagsTargetCountry.flags.svg ||
                                 flagsTargetCountry.flags.png
@@ -2276,9 +2272,8 @@ export default function QuizPage() {
                                 flagsTargetCountry.flags.alt ??
                                 `Flag of ${flagsTargetCountry.name.common}`
                               }
-                              fill
+                              code={flagsTargetCountry.cca2}
                               sizes="64px"
-                              className="object-cover"
                             />
                           </div>
                         ) : (

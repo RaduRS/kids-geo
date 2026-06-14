@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState, use } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import {
   WORLD_MAP_SVG_SRC,
   findContinentById,
@@ -11,6 +10,7 @@ import {
 } from "@/lib/geo/continents";
 import { getCountries, type Country } from "@/lib/api/countries";
 import { ZoomableSvg } from "@/app/components/zoomable-svg";
+import { CountryFlag } from "@/app/components/country-flag";
 
 type SvgCountryPath = {
   id: string;
@@ -279,7 +279,7 @@ export default function ContinentDetailPage({
           </div>
         </header>
 
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_380px] lg:items-start">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_300px] md:items-start lg:grid-cols-[1fr_380px]">
           <section className="overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-slate-900/10">
             <div className="border-b border-slate-200/60 bg-slate-50 px-5 py-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -287,7 +287,7 @@ export default function ContinentDetailPage({
                   {loading ? "Loading map…" : "Map"}
                 </div>
                 <div className="flex w-full flex-col gap-2 sm:w-auto sm:items-end">
-                  <div className="flex w-full items-center gap-2 sm:w-[260px]">
+                  <div className="flex w-full items-center gap-2 sm:w-[280px]">
                     <input
                       value={countryQuery}
                       onChange={(event) => {
@@ -304,12 +304,12 @@ export default function ContinentDetailPage({
                       autoComplete="off"
                       placeholder="Search country…"
                       aria-label="Search country"
-                      className="w-full rounded-xl bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-slate-900/10 outline-none placeholder:font-semibold placeholder:text-slate-400 focus:outline-none focus-visible:outline-none"
+                      className="h-12 w-full rounded-xl bg-white px-4 text-base font-semibold text-slate-900 shadow-sm ring-1 ring-slate-900/10 outline-none placeholder:font-semibold placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-sky-500"
                       disabled={loading || continentCountries.length === 0}
                     />
                     <button
                       type="button"
-                      className="shrink-0 rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white shadow-sm ring-1 ring-slate-900/10 outline-none hover:bg-slate-800 focus:outline-none focus-visible:outline-none disabled:cursor-not-allowed disabled:bg-slate-400"
+                      className="h-12 shrink-0 rounded-xl bg-slate-900 px-5 text-base font-semibold text-white shadow-sm ring-1 ring-slate-900/10 outline-none hover:bg-slate-800 active:bg-slate-700 focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-400"
                       onClick={() => searchAndSelectCountry(countryQuery)}
                       disabled={loading || continentCountries.length === 0}
                     >
@@ -326,7 +326,7 @@ export default function ContinentDetailPage({
             </div>
 
             <div className="p-4 md:p-6">
-              <div className="relative w-full h-[55vh] md:h-[70vh] lg:h-[75vh] rounded-2xl bg-slate-100">
+              <div className="relative w-full h-[50vh] md:h-[62vh] lg:h-[72vh] rounded-2xl bg-slate-100">
                 {loading ? (
                   <div className="flex h-full w-full items-center justify-center">
                     <div className="h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-slate-600"></div>
@@ -391,7 +391,7 @@ export default function ContinentDetailPage({
             </div>
           </section>
 
-          <aside className="overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-slate-900/10 lg:sticky lg:top-6">
+          <aside className="overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-slate-900/10 md:sticky md:top-6">
             <div className="border-b border-slate-200/60 bg-slate-50 px-5 py-4">
               <div className="text-sm font-semibold text-slate-700">
                 Country details
@@ -414,14 +414,13 @@ export default function ContinentDetailPage({
                       }}
                       aria-label={`Speak ${selectedCountry.name.common}`}
                     >
-                      <Image
+                      <CountryFlag
                         src={selectedCountry.flags.svg}
                         alt={
                           selectedCountry.flags.alt ||
                           `Flag of ${selectedCountry.name.common}`
                         }
-                        fill
-                        className="object-cover"
+                        code={selectedCountry.cca2}
                         sizes="80px"
                       />
                     </button>
