@@ -15,30 +15,17 @@ export type Country = {
   cca2: string;
 };
 
-// Cache API responses in memory to avoid repeated fetches during session
-let countriesCache: Country[] | null = null;
+// Country data is bundled locally (see countries.data.json) so the app has no
+// runtime dependency on any external API. The REST Countries v3.1 API this app
+// originally used was deprecated and now returns an error payload instead of
+// data, which silently emptied every country list. Flag images are served from
+// flagcdn.com (the same CDN REST Countries used) and built from each cca2 code.
+//
+// To refresh the dataset, see scripts/generate-countries.mjs.
+import countriesData from "./countries.data.json";
 
 export async function getCountries(): Promise<Country[]> {
-  if (countriesCache) {
-    return countriesCache;
-  }
-
-  try {
-    const res = await fetch(
-      "https://restcountries.com/v3.1/all?fields=name,capital,flags,cca2,region,subregion"
-    );
-
-    if (!res.ok) {
-      throw new Error("Failed to fetch countries");
-    }
-
-    const data = await res.json();
-    countriesCache = data;
-    return data;
-  } catch (error) {
-    console.error("Error fetching countries:", error);
-    return [];
-  }
+  return countriesData as Country[];
 }
 
 export function getCountriesByContinent(
