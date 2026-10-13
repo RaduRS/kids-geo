@@ -792,13 +792,17 @@ export default function QuizPage() {
   // is given. Only the quiz awards money; the map and continents screens do not.
   const awardIfPerfectRound = (
     continentId: ContinentId | null,
+    roundLength: number,
     isCorrect: boolean,
     questionIndex: number,
     scoreBefore: number,
   ) => {
     if (!continentId || !isCorrect) return;
-    if (questionIndex + 1 < scoreGoal) return;
-    if (scoreBefore < scoreGoal - 1) return;
+    // Only a full 10-question round pays out. A short round (Oceania has fewer
+    // than 10 countries on the map) never awards money.
+    if (roundLength < scoreGoal) return;
+    if (questionIndex + 1 < roundLength) return;
+    if (scoreBefore < roundLength - 1) return;
     award(rewardPenceForContinent(continentId));
   };
 
@@ -988,7 +992,7 @@ export default function QuizPage() {
       setCountryAvailableCodes(data.availableCodes);
       const order = shuffle(data.availableCodes).slice(
         0,
-        Math.min(20, data.availableCodes.length),
+        Math.min(scoreGoal, data.availableCodes.length),
       );
       setCountryQuestionOrder(order);
     } finally {
@@ -1003,6 +1007,12 @@ export default function QuizPage() {
   const countriesTargetCountry = countriesTargetCode
     ? (countriesByCode.get(countriesTargetCode) ?? null)
     : null;
+  // A round is 10 questions, or fewer only when the continent has fewer than
+  // 10 countries on the map (Oceania). Capping here is what stops repeats.
+  const countryRoundLength = Math.min(
+    scoreGoal,
+    countryAvailableCodes.length,
+  );
 
   const handleCountryGuess = (countryCode: string) => {
     if (!countriesTargetCode || countryAnswered) {
@@ -1019,6 +1029,7 @@ export default function QuizPage() {
     }
     awardIfPerfectRound(
       selectedContinentId,
+      countryRoundLength,
       isCorrect,
       countryQuestionIndex,
       countryScore,
@@ -1038,28 +1049,12 @@ export default function QuizPage() {
 
   const nextCountryQuestion = () => {
     const nextIndex = countryQuestionIndex + 1;
-    if (nextIndex >= scoreGoal) {
-      setCountryQuestionIndex(scoreGoal);
+    if (nextIndex >= countryRoundLength) {
+      setCountryQuestionIndex(countryRoundLength);
       setCountryAnswered(false);
       setCountryRevealCode(null);
       setCountryLastGuessCode(null);
       return;
-    }
-    if (
-      nextIndex >= countryQuestionOrder.length &&
-      countryAvailableCodes.length
-    ) {
-      const avoid = new Set(countryQuestionOrder.slice(-3));
-      let nextBatch = shuffle(countryAvailableCodes).filter(
-        (code) => !avoid.has(code),
-      );
-      if (!nextBatch.length) {
-        nextBatch = shuffle(countryAvailableCodes);
-      }
-      const append = nextBatch.slice(0, Math.min(20, nextBatch.length));
-      if (append.length) {
-        setCountryQuestionOrder([...countryQuestionOrder, ...append]);
-      }
     }
 
     setCountryQuestionIndex(nextIndex);
@@ -1069,7 +1064,9 @@ export default function QuizPage() {
   };
 
   const countriesDone =
-    selectedContinentId !== null && countryQuestionIndex >= scoreGoal;
+    selectedContinentId !== null &&
+    countryRoundLength > 0 &&
+    countryQuestionIndex >= countryRoundLength;
 
   const startCapitalsQuizForContinent = async (continentId: ContinentId) => {
     if (!countries) return;
@@ -1102,7 +1099,7 @@ export default function QuizPage() {
       setCapitalsAvailableCodes(availableCapitalCodes);
       const order = shuffle(availableCapitalCodes).slice(
         0,
-        Math.min(20, availableCapitalCodes.length),
+        Math.min(scoreGoal, availableCapitalCodes.length),
       );
       setCapitalsQuestionOrder(order);
     } finally {
@@ -1118,6 +1115,13 @@ export default function QuizPage() {
     ? (capitalsCountriesByCode.get(capitalsTargetCode) ?? null)
     : null;
   const capitalsTargetCapital = getPrimaryCapital(capitalsTargetCountry);
+  // See countryRoundLength: 10 questions, or fewer for a continent with fewer
+  // than 10 mapped countries (Oceania). Prevents repeats and short-circuits
+  // the reward for such a round.
+  const capitalsRoundLength = Math.min(
+    scoreGoal,
+    capitalsAvailableCodes.length,
+  );
   useEffect(() => {
     if (!capitalsTargetCode) {
       setCapitalsOptions([]);
@@ -1199,6 +1203,7 @@ export default function QuizPage() {
     }
     awardIfPerfectRound(
       capitalsContinentId,
+      capitalsRoundLength,
       isCorrect,
       capitalsQuestionIndex,
       capitalsScore,
@@ -1214,29 +1219,13 @@ export default function QuizPage() {
 
   const nextCapitalQuestion = () => {
     const nextIndex = capitalsQuestionIndex + 1;
-    if (nextIndex >= scoreGoal) {
-      setCapitalsQuestionIndex(scoreGoal);
+    if (nextIndex >= capitalsRoundLength) {
+      setCapitalsQuestionIndex(capitalsRoundLength);
       setCapitalsAnswered(false);
       setCapitalsRevealCode(null);
       setCapitalsLastGuess(null);
       setCapitalsSelectedAnswer(null);
       return;
-    }
-    if (
-      nextIndex >= capitalsQuestionOrder.length &&
-      capitalsAvailableCodes.length
-    ) {
-      const avoid = new Set(capitalsQuestionOrder.slice(-3));
-      let nextBatch = shuffle(capitalsAvailableCodes).filter(
-        (code) => !avoid.has(code),
-      );
-      if (!nextBatch.length) {
-        nextBatch = shuffle(capitalsAvailableCodes);
-      }
-      const append = nextBatch.slice(0, Math.min(20, nextBatch.length));
-      if (append.length) {
-        setCapitalsQuestionOrder([...capitalsQuestionOrder, ...append]);
-      }
     }
 
     setCapitalsQuestionIndex(nextIndex);
@@ -1247,7 +1236,9 @@ export default function QuizPage() {
   };
 
   const capitalsDone =
-    capitalsContinentId !== null && capitalsQuestionIndex >= scoreGoal;
+    capitalsContinentId !== null &&
+    capitalsRoundLength > 0 &&
+    capitalsQuestionIndex >= capitalsRoundLength;
 
   const startFlagsQuizForContinent = async (continentId: ContinentId) => {
     if (!countries) return;
@@ -1281,7 +1272,7 @@ export default function QuizPage() {
       setFlagsAvailableCodes(data.availableCodes);
       const order = shuffle(data.availableCodes).slice(
         0,
-        Math.min(20, data.availableCodes.length),
+        Math.min(scoreGoal, data.availableCodes.length),
       );
       setFlagsQuestionOrder(order);
     } finally {
@@ -1295,6 +1286,9 @@ export default function QuizPage() {
   const flagsTargetCountry = flagsTargetCode
     ? (flagsCountriesByCode.get(flagsTargetCode) ?? null)
     : null;
+  // See countryRoundLength: 10 questions, or fewer for Oceania. No money is
+  // awarded on a short round.
+  const flagsRoundLength = Math.min(scoreGoal, flagsAvailableCodes.length);
 
   const handleFlagGuess = (countryCode: string) => {
     if (!flagsTargetCode || flagsAnswered) {
@@ -1311,6 +1305,7 @@ export default function QuizPage() {
     }
     awardIfPerfectRound(
       flagsContinentId,
+      flagsRoundLength,
       isCorrect,
       flagsQuestionIndex,
       flagsScore,
@@ -1330,25 +1325,12 @@ export default function QuizPage() {
 
   const nextFlagQuestion = () => {
     const nextIndex = flagsQuestionIndex + 1;
-    if (nextIndex >= scoreGoal) {
-      setFlagsQuestionIndex(scoreGoal);
+    if (nextIndex >= flagsRoundLength) {
+      setFlagsQuestionIndex(flagsRoundLength);
       setFlagsAnswered(false);
       setFlagsRevealCode(null);
       setFlagsLastGuessCode(null);
       return;
-    }
-    if (nextIndex >= flagsQuestionOrder.length && flagsAvailableCodes.length) {
-      const avoid = new Set(flagsQuestionOrder.slice(-3));
-      let nextBatch = shuffle(flagsAvailableCodes).filter(
-        (code) => !avoid.has(code),
-      );
-      if (!nextBatch.length) {
-        nextBatch = shuffle(flagsAvailableCodes);
-      }
-      const append = nextBatch.slice(0, Math.min(20, nextBatch.length));
-      if (append.length) {
-        setFlagsQuestionOrder([...flagsQuestionOrder, ...append]);
-      }
     }
 
     setFlagsQuestionIndex(nextIndex);
@@ -1357,7 +1339,7 @@ export default function QuizPage() {
     setFlagsLastGuessCode(null);
   };
 
-  const flagsDone = flagsQuestionIndex >= scoreGoal;
+  const flagsDone = flagsRoundLength > 0 && flagsQuestionIndex >= flagsRoundLength;
 
   const currentCountryContinent = selectedContinentId
     ? findContinentById(selectedContinentId)
@@ -1723,7 +1705,7 @@ export default function QuizPage() {
                     {currentCountryContinent?.name ?? "Countries"} quiz
                   </div>
                   <div className="text-sm text-slate-600">
-                    Score: {countryScore}/{scoreGoal}
+                    Score: {countryScore}/{countryRoundLength}
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -1772,10 +1754,10 @@ export default function QuizPage() {
                         Congratulations!
                       </div>
                       <div className="mt-1 text-2xl font-bold">
-                        Score: {countryScore}/{scoreGoal}
+                        Score: {countryScore}/{countryRoundLength}
                       </div>
-                      {selectedContinentId ? (
-                        countryScore >= scoreGoal ? (
+                      {selectedContinentId && countryRoundLength >= scoreGoal ? (
+                        countryScore >= countryRoundLength ? (
                           <div className="mt-2 text-sm font-semibold text-emerald-700">
                             You earned{" "}
                             {formatGBP(
@@ -2013,7 +1995,7 @@ export default function QuizPage() {
                     {currentCapitalContinent?.name ?? "Capitals"} quiz
                   </div>
                   <div className="text-sm text-slate-600">
-                    Score: {capitalsScore}/{scoreGoal}
+                    Score: {capitalsScore}/{capitalsRoundLength}
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -2065,10 +2047,10 @@ export default function QuizPage() {
                         Congratulations!
                       </div>
                       <div className="mt-1 text-2xl font-bold">
-                        Score: {capitalsScore}/{scoreGoal}
+                        Score: {capitalsScore}/{capitalsRoundLength}
                       </div>
-                      {capitalsContinentId ? (
-                        capitalsScore >= scoreGoal ? (
+                      {capitalsContinentId && capitalsRoundLength >= scoreGoal ? (
+                        capitalsScore >= capitalsRoundLength ? (
                           <div className="mt-2 text-sm font-semibold text-emerald-700">
                             You earned{" "}
                             {formatGBP(
@@ -2301,7 +2283,7 @@ export default function QuizPage() {
                     {currentFlagsContinent?.name ?? "Flags"} quiz
                   </div>
                   <div className="text-sm text-slate-600">
-                    Score: {flagsScore}/{scoreGoal}
+                    Score: {flagsScore}/{flagsRoundLength}
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -2351,10 +2333,10 @@ export default function QuizPage() {
                         Congratulations!
                       </div>
                       <div className="mt-1 text-2xl font-bold">
-                        Score: {flagsScore}/{scoreGoal}
+                        Score: {flagsScore}/{flagsRoundLength}
                       </div>
-                      {flagsContinentId ? (
-                        flagsScore >= scoreGoal ? (
+                      {flagsContinentId && flagsRoundLength >= scoreGoal ? (
+                        flagsScore >= flagsRoundLength ? (
                           <div className="mt-2 text-sm font-semibold text-emerald-700">
                             You earned{" "}
                             {formatGBP(
