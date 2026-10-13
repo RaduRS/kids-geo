@@ -983,7 +983,7 @@ export default function QuizPage() {
     : null;
 
   const handleCountryGuess = (countryCode: string) => {
-    if (!countriesTargetCode || countryAnswered || countryScore >= scoreGoal) {
+    if (!countriesTargetCode || countryAnswered) {
       return;
     }
 
@@ -1009,8 +1009,14 @@ export default function QuizPage() {
   };
 
   const nextCountryQuestion = () => {
-    if (countryScore >= scoreGoal) return;
     const nextIndex = countryQuestionIndex + 1;
+    if (nextIndex >= scoreGoal) {
+      setCountryQuestionIndex(scoreGoal);
+      setCountryAnswered(false);
+      setCountryRevealCode(null);
+      setCountryLastGuessCode(null);
+      return;
+    }
     if (
       nextIndex >= countryQuestionOrder.length &&
       countryAvailableCodes.length
@@ -1035,7 +1041,7 @@ export default function QuizPage() {
   };
 
   const countriesDone =
-    selectedContinentId !== null && countryScore >= scoreGoal;
+    selectedContinentId !== null && countryQuestionIndex >= scoreGoal;
 
   const startCapitalsQuizForContinent = async (continentId: ContinentId) => {
     if (!countries) return;
@@ -1146,7 +1152,6 @@ export default function QuizPage() {
   const handleCapitalSubmit = () => {
     if (
       capitalsAnswered ||
-      capitalsScore >= scoreGoal ||
       !capitalsTargetCode ||
       !capitalsTargetCountry
     ) {
@@ -1174,8 +1179,15 @@ export default function QuizPage() {
   };
 
   const nextCapitalQuestion = () => {
-    if (capitalsScore >= scoreGoal) return;
     const nextIndex = capitalsQuestionIndex + 1;
+    if (nextIndex >= scoreGoal) {
+      setCapitalsQuestionIndex(scoreGoal);
+      setCapitalsAnswered(false);
+      setCapitalsRevealCode(null);
+      setCapitalsLastGuess(null);
+      setCapitalsSelectedAnswer(null);
+      return;
+    }
     if (
       nextIndex >= capitalsQuestionOrder.length &&
       capitalsAvailableCodes.length
@@ -1201,7 +1213,7 @@ export default function QuizPage() {
   };
 
   const capitalsDone =
-    capitalsContinentId !== null && capitalsScore >= scoreGoal;
+    capitalsContinentId !== null && capitalsQuestionIndex >= scoreGoal;
 
   const startFlagsQuizForContinent = async (continentId: ContinentId) => {
     if (!countries) return;
@@ -1251,7 +1263,7 @@ export default function QuizPage() {
     : null;
 
   const handleFlagGuess = (countryCode: string) => {
-    if (!flagsTargetCode || flagsAnswered || flagsScore >= scoreGoal) {
+    if (!flagsTargetCode || flagsAnswered) {
       return;
     }
 
@@ -1277,8 +1289,14 @@ export default function QuizPage() {
   };
 
   const nextFlagQuestion = () => {
-    if (flagsScore >= scoreGoal) return;
     const nextIndex = flagsQuestionIndex + 1;
+    if (nextIndex >= scoreGoal) {
+      setFlagsQuestionIndex(scoreGoal);
+      setFlagsAnswered(false);
+      setFlagsRevealCode(null);
+      setFlagsLastGuessCode(null);
+      return;
+    }
     if (nextIndex >= flagsQuestionOrder.length && flagsAvailableCodes.length) {
       const avoid = new Set(flagsQuestionOrder.slice(-3));
       let nextBatch = shuffle(flagsAvailableCodes).filter(
@@ -1299,7 +1317,7 @@ export default function QuizPage() {
     setFlagsLastGuessCode(null);
   };
 
-  const flagsDone = flagsScore >= scoreGoal;
+  const flagsDone = flagsQuestionIndex >= scoreGoal;
 
   const currentCountryContinent = selectedContinentId
     ? findContinentById(selectedContinentId)
