@@ -2,17 +2,24 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useBalance } from "@/app/components/balance-provider";
-import {
-  EUROPE_REWARD_PENCE,
-  OTHER_CONTINENT_REWARD_PENCE,
-  formatGBP,
-} from "@/lib/rewards/earnings";
+import { formatGBP } from "@/lib/rewards/earnings";
+
+// The balance can only be cleared with this code, so a child cannot wipe it by
+// poking around the UI.
+const RESET_CODE = "1990";
 
 export function BalanceBadge() {
   const { balancePence, hydrated, reset } = useBalance();
   const [open, setOpen] = useState(false);
-  const [confirmingReset, setConfirmingReset] = useState(false);
+  const [pin, setPin] = useState("");
+  const [pinError, setPinError] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const close = () => {
+    setOpen(false);
+    setPin("");
+    setPinError(false);
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -20,13 +27,15 @@ export function BalanceBadge() {
     function handlePointerDown(event: PointerEvent) {
       if (containerRef.current?.contains(event.target as Node)) return;
       setOpen(false);
-      setConfirmingReset(false);
+      setPin("");
+      setPinError(false);
     }
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key !== "Escape") return;
       setOpen(false);
-      setConfirmingReset(false);
+      setPin("");
+      setPinError(false);
     }
 
     document.addEventListener("pointerdown", handlePointerDown);
@@ -36,6 +45,15 @@ export function BalanceBadge() {
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [open]);
+
+  const handleReset = () => {
+    if (pin.trim() !== RESET_CODE) {
+      setPinError(true);
+      return;
+    }
+    reset();
+    close();
+  };
 
   if (!hydrated) {
     return (
@@ -51,8 +69,11 @@ export function BalanceBadge() {
       <button
         type="button"
         onClick={() => {
-          setOpen((prev) => !prev);
-          setConfirmingReset(false);
+          if (open) {
+            close();
+            return;
+          }
+          setOpen(true);
         }}
         aria-expanded={open}
         aria-haspopup="dialog"
@@ -74,29 +95,36 @@ export function BalanceBadge() {
           <div className="mt-1 text-2xl font-bold tabular-nums text-slate-900">
             {formatGBP(balancePence)}
           </div>
-          <p className="mt-2 text-sm leading-relaxed text-slate-600">
-            A perfect 10 out of 10 earns {formatGBP(EUROPE_REWARD_PENCE)} in
-            Europe and {formatGBP(OTHER_CONTINENT_REWARD_PENCE)} in every other
-            continent. Only quizzes earn money.
-          </p>
-          <button
-            type="button"
-            onClick={() => {
-              if (!confirmingReset) {
-                setConfirmingReset(true);
-                return;
-              }
-              reset();
-              setConfirmingReset(false);
-            }}
-            className={
-              confirmingReset
-                ? "mt-3 w-full rounded-full bg-rose-600 px-4 py-2 text-sm font-semibold text-white outline-none hover:bg-rose-700 focus-visible:ring-2 focus-visible:ring-rose-500 active:bg-rose-800"
-                : "mt-3 w-full rounded-full bg-white px-4 py-2 text-sm font-semibold text-rose-700 ring-1 ring-rose-200 outline-none hover:bg-rose-50 focus-visible:ring-2 focus-visible:ring-rose-500 active:bg-rose-100"
-            }
-          >
-            {confirmingReset ? "Tap again to confirm reset" : "Reset balance"}
-          </button>
+          <div className="mt-3 flex items-center gap-2">
+            <label htmlFor="balance-reset-pin" className="sr-only">
+              Parent code
+            </label>
+            <input
+              id="balance-reset-pin"
+              type="password"
+              inputMode="numeric"
+              autoComplete="off"
+              value={pin}
+              onChange={(event) => {
+                setPin(event.target.value);
+                setPinError(false);
+              }}
+              placeholder="Parent code"
+              className="h-9 w-full min-w-0 flex-1 rounded-full border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-slate-400"
+            />
+            <button
+              type="button"
+              onClick={handleReset}
+              className="h-9 shrink-0 rounded-full bg-white px-4 text-sm font-semibold text-rose-700 ring-1 ring-rose-200 outline-none hover:bg-rose-50 focus-visible:ring-2 focus-visible:ring-rose-500 active:bg-rose-100"
+            >
+              Reset
+            </button>
+          </div>
+          {pinError ? (
+            <p className="mt-2 text-xs font-semibold text-rose-600">
+              Incorrect code.
+            </p>
+          ) : null}
         </div>
       ) : null}
     </div>

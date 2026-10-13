@@ -101,6 +101,43 @@ function ResultBadge({ variant }: { variant: "correct" | "wrong" }) {
   );
 }
 
+// Restart + Next, floated over the bottom-right of the quiz's map so the child
+// does not have to scroll back to the header between questions. The wrapper is
+// click-through so it never blocks map drags; only the buttons are interactive.
+function QuizControls({
+  onRestart,
+  onNext,
+  nextDisabled,
+  showNext,
+}: {
+  onRestart: () => void;
+  onNext: () => void;
+  nextDisabled: boolean;
+  showNext: boolean;
+}) {
+  return (
+    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-wrap items-center justify-end gap-2 p-3">
+      <button
+        type="button"
+        onClick={onRestart}
+        className="pointer-events-auto rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-slate-900/10 outline-none hover:bg-slate-50 focus:outline-none focus-visible:outline-none active:bg-slate-100"
+      >
+        Restart
+      </button>
+      {showNext ? (
+        <button
+          type="button"
+          onClick={onNext}
+          disabled={nextDisabled}
+          className="pointer-events-auto rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-slate-900/10 outline-none hover:bg-slate-800 focus:outline-none focus-visible:outline-none disabled:cursor-not-allowed disabled:bg-slate-400"
+        >
+          Next
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 function CountryContinentPicker({
   svgText,
   codeToContinent,
@@ -1580,25 +1617,17 @@ export default function QuizPage() {
                   Score: {continentScore}/{continentOrder.length || 6}
                 </div>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={startContinentsQuiz}
-                  className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-slate-900/10 outline-none hover:bg-slate-50 focus:outline-none focus-visible:outline-none active:bg-slate-100"
-                >
-                  Restart
-                </button>
-                {!continentsDone ? (
+              {continentsDone ? (
+                <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
-                    onClick={nextContinentQuestion}
-                    disabled={!continentAnswered}
-                    className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-slate-900/10 outline-none hover:bg-slate-800 focus:outline-none focus-visible:outline-none disabled:cursor-not-allowed disabled:bg-slate-400"
+                    onClick={startContinentsQuiz}
+                    className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-slate-900/10 outline-none hover:bg-slate-50 focus:outline-none focus-visible:outline-none active:bg-slate-100"
                   >
-                    Next
+                    Restart
                   </button>
-                ) : null}
-              </div>
+                </div>
+              ) : null}
             </div>
 
             <div className="p-4 md:p-6">
@@ -1678,12 +1707,20 @@ export default function QuizPage() {
               </div>
 
               {!continentsDone ? (
-                <WorldMap
-                  activeContinentId={continentRevealId}
-                  onContinentPress={handleContinentGuess}
-                  enableSpeech={false}
-                  showLabel={continentAnswered}
-                />
+                <div className="relative">
+                  <WorldMap
+                    activeContinentId={continentRevealId}
+                    onContinentPress={handleContinentGuess}
+                    enableSpeech={false}
+                    showLabel={continentAnswered}
+                  />
+                  <QuizControls
+                    onRestart={startContinentsQuiz}
+                    onNext={nextContinentQuestion}
+                    nextDisabled={!continentAnswered}
+                    showNext
+                  />
+                </div>
               ) : null}
             </div>
           </div>
@@ -1728,24 +1765,18 @@ export default function QuizPage() {
                   >
                     Change continent
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!selectedContinentId) return;
-                      void startCountriesQuizForContinent(selectedContinentId);
-                    }}
-                    className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-slate-900/10 outline-none hover:bg-slate-50 focus:outline-none focus-visible:outline-none active:bg-slate-100"
-                  >
-                    Restart
-                  </button>
-                  {!countriesDone ? (
+                  {countriesDone ? (
                     <button
                       type="button"
-                      onClick={nextCountryQuestion}
-                      disabled={!countryAnswered}
-                      className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-slate-900/10 outline-none hover:bg-slate-800 focus:outline-none focus-visible:outline-none disabled:cursor-not-allowed disabled:bg-slate-400"
+                      onClick={() => {
+                        if (!selectedContinentId) return;
+                        void startCountriesQuizForContinent(
+                          selectedContinentId,
+                        );
+                      }}
+                      className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-slate-900/10 outline-none hover:bg-slate-50 focus:outline-none focus-visible:outline-none active:bg-slate-100"
                     >
-                      Next
+                      Restart
                     </button>
                   ) : null}
                 </div>
@@ -1972,6 +2003,17 @@ export default function QuizPage() {
                         })}
                       </ZoomableSvg>
                     )}
+                    <QuizControls
+                      onRestart={() => {
+                        if (!selectedContinentId) return;
+                        void startCountriesQuizForContinent(
+                          selectedContinentId,
+                        );
+                      }}
+                      onNext={nextCountryQuestion}
+                      nextDisabled={!countryAnswered}
+                      showNext
+                    />
                   </div>
                 ) : null}
               </div>
@@ -2021,24 +2063,18 @@ export default function QuizPage() {
                   >
                     Change continent
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!capitalsContinentId) return;
-                      void startCapitalsQuizForContinent(capitalsContinentId);
-                    }}
-                    className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-slate-900/10 outline-none hover:bg-slate-50 focus:outline-none focus-visible:outline-none active:bg-slate-100"
-                  >
-                    Restart
-                  </button>
-                  {!capitalsDone ? (
+                  {capitalsDone ? (
                     <button
                       type="button"
-                      onClick={nextCapitalQuestion}
-                      disabled={!capitalsAnswered}
-                      className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-slate-900/10 outline-none hover:bg-slate-800 focus:outline-none focus-visible:outline-none disabled:cursor-not-allowed disabled:bg-slate-400"
+                      onClick={() => {
+                        if (!capitalsContinentId) return;
+                        void startCapitalsQuizForContinent(
+                          capitalsContinentId,
+                        );
+                      }}
+                      className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-slate-900/10 outline-none hover:bg-slate-50 focus:outline-none focus-visible:outline-none active:bg-slate-100"
                     >
-                      Next
+                      Restart
                     </button>
                   ) : null}
                 </div>
@@ -2259,6 +2295,17 @@ export default function QuizPage() {
                           })}
                         </ZoomableSvg>
                       )}
+                      <QuizControls
+                        onRestart={() => {
+                          if (!capitalsContinentId) return;
+                          void startCapitalsQuizForContinent(
+                            capitalsContinentId,
+                          );
+                        }}
+                        onNext={nextCapitalQuestion}
+                        nextDisabled={!capitalsAnswered}
+                        showNext
+                      />
                     </div>
                   </>
                 ) : null}
@@ -2307,24 +2354,16 @@ export default function QuizPage() {
                   >
                     Change continent
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!flagsContinentId) return;
-                      void startFlagsQuizForContinent(flagsContinentId);
-                    }}
-                    className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-slate-900/10 outline-none hover:bg-slate-50 focus:outline-none focus-visible:outline-none active:bg-slate-100"
-                  >
-                    Restart
-                  </button>
-                  {!flagsDone ? (
+                  {flagsDone ? (
                     <button
                       type="button"
-                      onClick={nextFlagQuestion}
-                      disabled={!flagsAnswered}
-                      className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-slate-900/10 outline-none hover:bg-slate-800 focus:outline-none focus-visible:outline-none disabled:cursor-not-allowed disabled:bg-slate-400"
+                      onClick={() => {
+                        if (!flagsContinentId) return;
+                        void startFlagsQuizForContinent(flagsContinentId);
+                      }}
+                      className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-slate-900/10 outline-none hover:bg-slate-50 focus:outline-none focus-visible:outline-none active:bg-slate-100"
                     >
-                      Next
+                      Restart
                     </button>
                   ) : null}
                 </div>
@@ -2548,6 +2587,15 @@ export default function QuizPage() {
                         })}
                       </ZoomableSvg>
                     )}
+                    <QuizControls
+                      onRestart={() => {
+                        if (!flagsContinentId) return;
+                        void startFlagsQuizForContinent(flagsContinentId);
+                      }}
+                      onNext={nextFlagQuestion}
+                      nextDisabled={!flagsAnswered}
+                      showNext
+                    />
                   </div>
                 ) : null}
               </div>
