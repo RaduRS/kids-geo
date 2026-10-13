@@ -4,7 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import { ZoomableSvg } from "@/app/components/zoomable-svg";
 import { CountryFlag } from "@/app/components/country-flag";
 import { WorldMap } from "@/app/components/world-map";
+import { useBalance } from "@/app/components/balance-provider";
 import { getCountries, type Country } from "@/lib/api/countries";
+import {
+  formatGBP,
+  rewardPenceForContinent,
+} from "@/lib/rewards/earnings";
 import {
   CONTINENTS,
   type ContinentId,
@@ -498,6 +503,7 @@ function EuropeHighlightPreview({
 }
 
 export default function QuizPage() {
+  const { award } = useBalance();
   const [mode, setMode] = useState<QuizMode>("landing");
   const [svgText, setSvgText] = useState<string | null>(null);
   const [countries, setCountries] = useState<Country[] | null>(null);
@@ -780,6 +786,22 @@ export default function QuizPage() {
 
   const scoreGoal = 10;
 
+  // Pays out once, at the moment the final question of a round is answered
+  // correctly and every earlier question was also correct. A wrong answer
+  // earlier in the round means the score never reaches the goal, so no reward
+  // is given. Only the quiz awards money; the map and continents screens do not.
+  const awardIfPerfectRound = (
+    continentId: ContinentId | null,
+    isCorrect: boolean,
+    questionIndex: number,
+    scoreBefore: number,
+  ) => {
+    if (!continentId || !isCorrect) return;
+    if (questionIndex + 1 < scoreGoal) return;
+    if (scoreBefore < scoreGoal - 1) return;
+    award(rewardPenceForContinent(continentId));
+  };
+
   const [flagsContinentId, setFlagsContinentId] = useState<ContinentId | null>(
     null,
   );
@@ -995,6 +1017,12 @@ export default function QuizPage() {
     if (isCorrect) {
       setCountryScore((prev) => prev + 1);
     }
+    awardIfPerfectRound(
+      selectedContinentId,
+      isCorrect,
+      countryQuestionIndex,
+      countryScore,
+    );
 
     const guessName = countriesByCode.get(countryCode)?.name.common ?? null;
     const targetName =
@@ -1169,6 +1197,12 @@ export default function QuizPage() {
     if (isCorrect) {
       setCapitalsScore((prev) => prev + 1);
     }
+    awardIfPerfectRound(
+      capitalsContinentId,
+      isCorrect,
+      capitalsQuestionIndex,
+      capitalsScore,
+    );
 
     const answerSentence = `${correctCapital} is the capital of ${capitalsTargetCountry.name.common}.`;
     speakText(
@@ -1275,6 +1309,12 @@ export default function QuizPage() {
     if (isCorrect) {
       setFlagsScore((prev) => prev + 1);
     }
+    awardIfPerfectRound(
+      flagsContinentId,
+      isCorrect,
+      flagsQuestionIndex,
+      flagsScore,
+    );
 
     const guessName =
       flagsCountriesByCode.get(countryCode)?.name.common ?? null;
@@ -1734,6 +1774,25 @@ export default function QuizPage() {
                       <div className="mt-1 text-2xl font-bold">
                         Score: {countryScore}/{scoreGoal}
                       </div>
+                      {selectedContinentId ? (
+                        countryScore >= scoreGoal ? (
+                          <div className="mt-2 text-sm font-semibold text-emerald-700">
+                            You earned{" "}
+                            {formatGBP(
+                              rewardPenceForContinent(selectedContinentId),
+                            )}
+                            !
+                          </div>
+                        ) : (
+                          <div className="mt-2 text-sm font-semibold text-slate-600">
+                            A perfect {scoreGoal} out of {scoreGoal} earns{" "}
+                            {formatGBP(
+                              rewardPenceForContinent(selectedContinentId),
+                            )}
+                            .
+                          </div>
+                        )
+                      ) : null}
                     </>
                   ) : (
                     <>
@@ -2008,6 +2067,25 @@ export default function QuizPage() {
                       <div className="mt-1 text-2xl font-bold">
                         Score: {capitalsScore}/{scoreGoal}
                       </div>
+                      {capitalsContinentId ? (
+                        capitalsScore >= scoreGoal ? (
+                          <div className="mt-2 text-sm font-semibold text-emerald-700">
+                            You earned{" "}
+                            {formatGBP(
+                              rewardPenceForContinent(capitalsContinentId),
+                            )}
+                            !
+                          </div>
+                        ) : (
+                          <div className="mt-2 text-sm font-semibold text-slate-600">
+                            A perfect {scoreGoal} out of {scoreGoal} earns{" "}
+                            {formatGBP(
+                              rewardPenceForContinent(capitalsContinentId),
+                            )}
+                            .
+                          </div>
+                        )
+                      ) : null}
                     </>
                   ) : (
                     <>
@@ -2275,6 +2353,25 @@ export default function QuizPage() {
                       <div className="mt-1 text-2xl font-bold">
                         Score: {flagsScore}/{scoreGoal}
                       </div>
+                      {flagsContinentId ? (
+                        flagsScore >= scoreGoal ? (
+                          <div className="mt-2 text-sm font-semibold text-emerald-700">
+                            You earned{" "}
+                            {formatGBP(
+                              rewardPenceForContinent(flagsContinentId),
+                            )}
+                            !
+                          </div>
+                        ) : (
+                          <div className="mt-2 text-sm font-semibold text-slate-600">
+                            A perfect {scoreGoal} out of {scoreGoal} earns{" "}
+                            {formatGBP(
+                              rewardPenceForContinent(flagsContinentId),
+                            )}
+                            .
+                          </div>
+                        )
+                      ) : null}
                     </>
                   ) : (
                     <>

@@ -4,6 +4,8 @@ import Link from "next/link";
 import Image from "next/image";
 import "./globals.css";
 import { HeaderNav } from "./components/header-nav";
+import { BalanceBadge } from "@/app/components/balance-badge";
+import { BalanceProvider } from "@/app/components/balance-provider";
 import { PwaRegister } from "@/app/components/pwa-register";
 
 const geistSans = Geist({
@@ -41,7 +43,8 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased text-slate-900`}
       >
         <PwaRegister />
-        <div className="min-h-screen bg-linear-to-b from-sky-50 via-sky-50 to-sky-100">
+        <BalanceProvider>
+          <div className="min-h-screen bg-linear-to-b from-sky-50 via-sky-50 to-sky-100">
           <header className="sticky top-0 z-20 w-full border-b border-sky-200/70 bg-white/70 backdrop-blur">
             <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-3 md:px-6 md:py-4">
               <Link
@@ -69,14 +72,18 @@ export default function RootLayout({
                 </div>
               </Link>
 
-              <HeaderNav />
+              <div className="flex items-center gap-2">
+                <HeaderNav />
+                <BalanceBadge />
+              </div>
             </div>
           </header>
 
           <main className="mx-auto w-full max-w-6xl px-4 py-6 md:px-6 md:py-10">
             {children}
           </main>
-        </div>
+          </div>
+        </BalanceProvider>
       </body>
     </html>
   );
