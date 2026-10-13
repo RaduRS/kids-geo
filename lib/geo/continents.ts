@@ -66,7 +66,7 @@ export const CONTINENTS: Continent[] = [
   },
   {
     id: "australia-oceania",
-    name: "Australia",
+    name: "Australia & Oceania",
     labelXPercent: 85,
     labelYPercent: 75,
     color: "#6366f1",
@@ -113,3 +113,15 @@ export function shouldKeepOnlyMainlandForContinent(
   const code = countryCode.toLowerCase();
   return code === "fr" || code === "es" || code === "pt";
 }
+
+// Dependent territories that are drawn on the map but are not sovereign
+// countries. They stay visible as inert land so the map keeps its shape, but
+// they are never asked about in a quiz: Greenland and Puerto Rico (Denmark /
+// United States), the Falkland Islands (United Kingdom), and New Caledonia
+// (France).
+export const NON_SOVEREIGN_QUIZ_CODES = new Set([
+  "gl",
+  "pr",
+  "fk",
+  "nc",
+]);

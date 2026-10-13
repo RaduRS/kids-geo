@@ -14,6 +14,7 @@ import {
   CONTINENTS,
   type ContinentId,
   WORLD_MAP_SVG_SRC,
+  NON_SOVEREIGN_QUIZ_CODES,
   findContinentById,
   mapCountryToContinent,
   shouldKeepOnlyMainlandForContinent,
@@ -916,10 +917,14 @@ export default function QuizPage() {
         return;
       }
 
+      // Dependent territories stay on the map as inert land but are never
+      // quizzed, so they are pushed without a code (like Somaliland above).
       extractedPaths.push({
         id: rawId || `path-${index}`,
         d: p.getAttribute("d") || "",
-        countryCode,
+        countryCode: NON_SOVEREIGN_QUIZ_CODES.has(countryCode)
+          ? null
+          : countryCode,
       });
     });
 
