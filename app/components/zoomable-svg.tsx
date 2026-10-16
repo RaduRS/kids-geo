@@ -2,6 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
+// How far a pointer may drift before we call it a pan instead of a tap. Without
+// this, a shaky finger would pan the map and swallow the country tap.
+const PAN_DRAG_THRESHOLD_PX = 4;
+
 function parseViewBox(viewBox: string) {
   const [x, y, w, h] = viewBox.split(/\s+/).map(Number);
   return {
@@ -34,6 +38,7 @@ export function useZoomableMap(baseViewBox: string) {
     centerClientY: number;
   } | null>(null);
   const pointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const draggingRef = useRef(false);
 
   useEffect(() => {
     scaleRef.current = scale;
@@ -110,7 +115,6 @@ export function useZoomableMap(baseViewBox: string) {
 
   const onPointerDown = (event: React.PointerEvent<SVGSVGElement>) => {
     if (!svgRef.current) return;
-    svgRef.current.setPointerCapture(event.pointerId);
     pointersRef.current.set(event.pointerId, {
       x: event.clientX,
       y: event.clientY,
@@ -127,6 +131,7 @@ export function useZoomableMap(baseViewBox: string) {
         startPanY: currentPan.y,
       };
       pinchGestureRef.current = null;
+      draggingRef.current = false;
       return;
     }
 
@@ -148,6 +153,7 @@ export function useZoomableMap(baseViewBox: string) {
         centerClientY,
       };
       panGestureRef.current = null;
+      draggingRef.current = false;
     }
   };
 
@@ -159,8 +165,22 @@ export function useZoomableMap(baseViewBox: string) {
       y: event.clientY,
     });
 
+    // Capture only once a gesture is genuinely under way. Capturing on
+    // pointerdown instead makes Chrome retarget the derived click to the <svg>,
+    // so a tap never reaches the country <path> underneath it.
+    const capturePointers = () => {
+      pointersRef.current.forEach((_value, id) => {
+        try {
+          svgRef.current?.setPointerCapture(id);
+        } catch {
+          // The pointer may already be gone; capture is best-effort.
+        }
+      });
+    };
+
     const pinchGesture = pinchGestureRef.current;
     if (pinchGesture && pointersRef.current.size >= 2) {
+      capturePointers();
       const points = Array.from(pointersRef.current.values());
       const dx = points[0].x - points[1].x;
       const dy = points[0].y - points[1].y;
@@ -191,6 +211,29 @@ export function useZoomableMap(baseViewBox: string) {
     const currentScale = scaleRef.current;
     const currentW = base.w / currentScale;
     const currentH = base.h / currentScale;
+
+    if (!draggingRef.current) {
+      const driftX = event.clientX - panGesture.startClientX;
+      const driftY = event.clientY - panGesture.startClientY;
+      if (Math.hypot(driftX, driftY) < PAN_DRAG_THRESHOLD_PX) {
+        // Still close enough to the press point to count as a tap, so leave the
+        // gesture uncaptured and let the click land on whatever was pressed.
+        return;
+      }
+
+      draggingRef.current = true;
+      capturePointers();
+      // Re-anchor to where the drag actually started, so the map does not jump
+      // by the threshold distance on the first move.
+      panGestureRef.current = {
+        startClientX: event.clientX,
+        startClientY: event.clientY,
+        startPanX: panRef.current.x,
+        startPanY: panRef.current.y,
+      };
+      return;
+    }
+
     const dxClient = event.clientX - panGesture.startClientX;
     const dyClient = event.clientY - panGesture.startClientY;
     const dxWorld = (dxClient / rect.width) * currentW;
@@ -210,6 +253,7 @@ export function useZoomableMap(baseViewBox: string) {
     if (pointersRef.current.size === 0) {
       panGestureRef.current = null;
       pinchGestureRef.current = null;
+      draggingRef.current = false;
       return;
     }
 
@@ -231,6 +275,7 @@ export function useZoomableMap(baseViewBox: string) {
     if (pointersRef.current.size === 0) {
       panGestureRef.current = null;
       pinchGestureRef.current = null;
+      draggingRef.current = false;
     }
   };
 
