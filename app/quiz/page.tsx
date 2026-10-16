@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  ArrowRight,
+  ArrowCounterClockwise,
+  Check,
+  X,
+} from "@phosphor-icons/react";
 import { ZoomableSvg } from "@/app/components/zoomable-svg";
 import { CountryFlag } from "@/app/components/country-flag";
 import { WorldMap } from "@/app/components/world-map";
@@ -41,6 +47,51 @@ function shuffle<T>(items: readonly T[]) {
   return copy;
 }
 
+// The countries kids already know well. They stay in the rotation, but are
+// drawn about half as often, so a round has more room for the ones still being
+// learned instead of repeating the same handful. Codes match the path ids in
+// the world map SVG (the UK's is "gb", not "uk").
+const EASY_COUNTRY_CODES = new Set([
+  "fr", // France
+  "gb", // United Kingdom
+  "es", // Spain
+  "de", // Germany
+  "ro", // Romania
+  "fi", // Finland
+  "no", // Norway
+  "dk", // Denmark
+  "pt", // Portugal
+  "is", // Iceland
+  "ie", // Ireland
+  "it", // Italy
+  "gr", // Greece
+]);
+
+// Weight applied to the codes above. 0.5 means "roughly half as likely".
+const EASY_COUNTRY_WEIGHT = 0.5;
+
+// Weighted sampling without replacement (Efraimidis-Spirakis): each item gets a
+// key of random^(1/weight), and sorting by that key draws heavier items first.
+// With every weight equal to 1 it behaves like a plain shuffle.
+function weightedShuffle<T>(
+  items: readonly T[],
+  weightOf: (item: T) => number,
+) {
+  return items
+    .map((item) => ({
+      item,
+      key: Math.random() ** (1 / Math.max(weightOf(item), 1e-6)),
+    }))
+    .sort((a, b) => b.key - a.key)
+    .map(({ item }) => item);
+}
+
+function pickQuizCountries(availableCodes: readonly string[], roundSize: number) {
+  return weightedShuffle(availableCodes, (code) =>
+    EASY_COUNTRY_CODES.has(code) ? EASY_COUNTRY_WEIGHT : 1,
+  ).slice(0, Math.min(roundSize, availableCodes.length));
+}
+
 function speakText(text: string) {
   if (typeof window === "undefined") return;
   const synth = window.speechSynthesis;
@@ -72,30 +123,9 @@ function ResultBadge({ variant }: { variant: "correct" | "wrong" }) {
   return (
     <span className={wrapperClass} aria-hidden="true">
       {isCorrect ? (
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className={iconClass}
-        >
-          <path d="M20 6L9 17l-5-5" />
-        </svg>
+        <Check weight="bold" className={iconClass} />
       ) : (
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className={iconClass}
-        >
-          <path d="M18 6L6 18" />
-          <path d="M6 6l12 12" />
-        </svg>
+        <X weight="bold" className={iconClass} />
       )}
     </span>
   );
@@ -134,6 +164,49 @@ function QuizControls({
           Next
         </button>
       ) : null}
+    </div>
+  );
+}
+
+// The country quiz is played entirely on the map, so everything the child needs
+// mid-round floats over it: the question top-left, the score top-right, and
+// Restart bottom-left. Each layer is a click-through wrapper holding one
+// interactive card, so map drags still work everywhere between them.
+function MapPrompt({ children }: { children: ReactNode }) {
+  return (
+    <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-3 p-3">
+      {children}
+    </div>
+  );
+}
+
+function MapScore({
+  score,
+  total,
+}: {
+  score: number;
+  total: number;
+}) {
+  return (
+    <div className="pointer-events-auto shrink-0 rounded-full bg-white/95 px-4 py-1.5 text-lg font-bold tabular-nums text-slate-900 shadow-sm ring-1 ring-slate-900/10 backdrop-blur-sm">
+      {score}/{total}
+    </div>
+  );
+}
+
+// Restart, floated over the bottom-left of the map so the child can start the
+// round again without scrolling back up.
+function MapRestart({ onRestart }: { onRestart: () => void }) {
+  return (
+    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex justify-start p-3">
+      <button
+        type="button"
+        onClick={onRestart}
+        className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-slate-900/10 outline-none hover:bg-slate-50 focus:outline-none focus-visible:outline-none active:bg-slate-100"
+      >
+        <ArrowCounterClockwise weight="bold" className="h-4 w-4" />
+        Restart
+      </button>
     </div>
   );
 }
@@ -1032,10 +1105,7 @@ export default function QuizPage() {
       setCountrySvgPaths(data.paths);
       setCountryViewBox(data.viewBox);
       setCountryAvailableCodes(data.availableCodes);
-      const order = shuffle(data.availableCodes).slice(
-        0,
-        Math.min(scoreGoal, data.availableCodes.length),
-      );
+      const order = pickQuizCountries(data.availableCodes, scoreGoal);
       setCountryQuestionOrder(order);
     } finally {
       setCountryMapLoading(false);
@@ -1103,6 +1173,16 @@ export default function QuizPage() {
     setCountryAnswered(false);
     setCountryRevealCode(null);
     setCountryLastGuessCode(null);
+
+    // Read the next question aloud once, so the child hears it without having
+    // to tap. Only on Next: the first question of a round stays silent.
+    const nextCode = countryQuestionOrder[nextIndex];
+    const nextName = nextCode
+      ? countriesByCode.get(nextCode)?.name.common
+      : null;
+    if (nextName) {
+      speakText(`Where is ${nextName}?`);
+    }
   };
 
   const countriesDone =
@@ -1312,10 +1392,7 @@ export default function QuizPage() {
       setFlagsSvgPaths(data.paths);
       setFlagsBaseViewBox(data.viewBox);
       setFlagsAvailableCodes(data.availableCodes);
-      const order = shuffle(data.availableCodes).slice(
-        0,
-        Math.min(scoreGoal, data.availableCodes.length),
-      );
+      const order = pickQuizCountries(data.availableCodes, scoreGoal);
       setFlagsQuestionOrder(order);
     } finally {
       setFlagsMapLoading(false);
@@ -1741,31 +1818,39 @@ export default function QuizPage() {
             </div>
           ) : (
             <div className="overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-slate-900/10">
-              <div className="flex flex-col gap-3 border-b border-slate-200/60 bg-slate-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex flex-col gap-1">
-                  <div className="text-sm font-semibold text-slate-700">
-                    {currentCountryContinent?.name ?? "Countries"} quiz
-                  </div>
-                  <div className="text-sm text-slate-600">
-                    Score: {countryScore}/{countryRoundLength}
-                  </div>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedContinentId(null);
-                      setCountryQuestionOrder([]);
-                      setCountrySvgPaths([]);
-                      setCountryAnswered(false);
-                      setCountryRevealCode(null);
-                      setCountryLastGuessCode(null);
-                    }}
-                    className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-slate-900/10 outline-none hover:bg-slate-50 focus:outline-none focus-visible:outline-none active:bg-slate-100"
-                  >
-                    Change continent
-                  </button>
-                  {countriesDone ? (
+              <div className="p-4 md:p-6">
+                {countriesDone ? (
+                  <div className="flex flex-col items-start gap-4 rounded-2xl bg-slate-50 p-5 text-slate-900 ring-1 ring-slate-900/10">
+                    <div>
+                      <div className="text-sm font-semibold text-slate-600">
+                        {currentCountryContinent?.name ?? "Countries"} quiz
+                        finished
+                      </div>
+                      <div className="mt-1 text-2xl font-bold">
+                        Score: {countryScore}/{countryRoundLength}
+                      </div>
+                    </div>
+                    {selectedContinentId && countryRoundLength >= scoreGoal ? (
+                      <div className="text-sm font-semibold">
+                        {countryScore >= countryRoundLength ? (
+                          <span className="text-emerald-700">
+                            You earned{" "}
+                            {formatGBP(
+                              rewardPenceForContinent(selectedContinentId),
+                            )}
+                            !
+                          </span>
+                        ) : (
+                          <span className="text-slate-600">
+                            A perfect {scoreGoal} out of {scoreGoal} earns{" "}
+                            {formatGBP(
+                              rewardPenceForContinent(selectedContinentId),
+                            )}
+                            .
+                          </span>
+                        )}
+                      </div>
+                    ) : null}
                     <button
                       type="button"
                       onClick={() => {
@@ -1774,132 +1859,13 @@ export default function QuizPage() {
                           selectedContinentId,
                         );
                       }}
-                      className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-slate-900/10 outline-none hover:bg-slate-50 focus:outline-none focus-visible:outline-none active:bg-slate-100"
+                      className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm shadow-slate-900/10 outline-none hover:bg-slate-800 focus:outline-none focus-visible:outline-none active:bg-slate-700"
                     >
-                      Restart
+                      <ArrowCounterClockwise weight="bold" className="h-4 w-4" />
+                      Play again
                     </button>
-                  ) : null}
-                </div>
-              </div>
-
-              <div className="p-4 md:p-6">
-                <div className="mb-4 rounded-2xl bg-slate-50 p-4 text-slate-900 ring-1 ring-slate-900/10">
-                  {countriesDone ? (
-                    <>
-                      <div className="text-sm font-semibold text-slate-600">
-                        Congratulations!
-                      </div>
-                      <div className="mt-1 text-2xl font-bold">
-                        Score: {countryScore}/{countryRoundLength}
-                      </div>
-                      {selectedContinentId && countryRoundLength >= scoreGoal ? (
-                        countryScore >= countryRoundLength ? (
-                          <div className="mt-2 text-sm font-semibold text-emerald-700">
-                            You earned{" "}
-                            {formatGBP(
-                              rewardPenceForContinent(selectedContinentId),
-                            )}
-                            !
-                          </div>
-                        ) : (
-                          <div className="mt-2 text-sm font-semibold text-slate-600">
-                            A perfect {scoreGoal} out of {scoreGoal} earns{" "}
-                            {formatGBP(
-                              rewardPenceForContinent(selectedContinentId),
-                            )}
-                            .
-                          </div>
-                        )
-                      ) : null}
-                    </>
-                  ) : (
-                    <>
-                      <div className="mt-1 flex flex-wrap items-center gap-3">
-                        {countriesTargetCountry ? (
-                          <div className="relative h-8 w-12 overflow-hidden rounded-md ring-1 ring-slate-900/10">
-                            <CountryFlag
-                              src={
-                                countriesTargetCountry.flags.svg ||
-                                countriesTargetCountry.flags.png
-                              }
-                              alt={
-                                countriesTargetCountry.flags.alt ??
-                                `Flag of ${countriesTargetCountry.name.common}`
-                              }
-                              code={countriesTargetCountry.cca2}
-                              sizes="48px"
-                            />
-                          </div>
-                        ) : (
-                          <div
-                            className="h-8 w-12 rounded-md bg-slate-200"
-                            aria-hidden="true"
-                          />
-                        )}
-                        <div className="text-2xl font-bold">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              speakText(
-                                `Where is ${countriesTargetCountry?.name.common ?? "this country"}?`,
-                              );
-                            }}
-                            className="cursor-pointer text-left"
-                          >
-                            Where is{" "}
-                            {countriesTargetCountry?.name.common ?? "…"}?
-                          </button>
-                        </div>
-                      </div>
-                      {countryAnswered && countriesTargetCountry ? (
-                        <div className="mt-3 flex flex-wrap items-center gap-3">
-                          {countryLastGuessCode === countriesTargetCode ? (
-                            <>
-                              <ResultBadge variant="correct" />
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  speakText("Correct!");
-                                }}
-                                className="cursor-pointer text-left text-base font-extrabold text-emerald-700"
-                              >
-                                Correct!
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <ResultBadge variant="wrong" />
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  speakText("Not quite!");
-                                }}
-                                className="cursor-pointer text-left text-base font-extrabold text-rose-700"
-                              >
-                                Not quite!
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  speakText(
-                                    "The correct country is highlighted.",
-                                  );
-                                }}
-                                className="cursor-pointer text-left text-sm font-semibold text-slate-700"
-                              >
-                                The correct country is highlighted.
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="mt-2 text-sm text-slate-600">
-                          Tap the country on the map.
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
+                  </div>
+                ) : null}
 
                 {!countriesDone ? (
                   <div className="relative h-[55vh] w-full overflow-hidden rounded-2xl bg-slate-100 md:h-[70vh] lg:h-[75vh]">
@@ -2003,17 +1969,84 @@ export default function QuizPage() {
                         })}
                       </ZoomableSvg>
                     )}
-                    <QuizControls
-                      onRestart={() => {
-                        if (!selectedContinentId) return;
-                        void startCountriesQuizForContinent(
-                          selectedContinentId,
-                        );
-                      }}
-                      onNext={nextCountryQuestion}
-                      nextDisabled={!countryAnswered}
-                      showNext
-                    />
+                    {!countryMapLoading && countriesTargetCountry ? (
+                      <MapPrompt>
+                        <div className="pointer-events-auto flex min-w-0 flex-col gap-3 rounded-3xl bg-white/95 px-4 py-3 shadow-sm ring-1 ring-slate-900/10 backdrop-blur-sm">
+                          <div className="flex items-center gap-3">
+                            <div className="relative h-8 w-12 shrink-0 overflow-hidden rounded-md ring-1 ring-slate-900/10">
+                              <CountryFlag
+                                src={
+                                  countriesTargetCountry.flags.svg ||
+                                  countriesTargetCountry.flags.png
+                                }
+                                alt={
+                                  countriesTargetCountry.flags.alt ??
+                                  `Flag of ${countriesTargetCountry.name.common}`
+                                }
+                                code={countriesTargetCountry.cca2}
+                                sizes="48px"
+                              />
+                            </div>
+                            <div className="flex min-w-0 items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  speakText(
+                                    `Where is ${countriesTargetCountry.name.common}?`,
+                                  );
+                                }}
+                                className="cursor-pointer text-left text-xl font-bold text-slate-900 outline-none focus:outline-none focus-visible:outline-none md:text-2xl"
+                              >
+                                Where is {countriesTargetCountry.name.common}?
+                              </button>
+                              {/* The tick or cross lands right after the
+                                  question mark, so the verdict reads as part
+                                  of the question the child just answered. */}
+                              {countryAnswered ? (
+                                <>
+                                  <ResultBadge
+                                    variant={
+                                      countryLastGuessCode ===
+                                      countriesTargetCode
+                                        ? "correct"
+                                        : "wrong"
+                                    }
+                                  />
+                                  <span className="sr-only">
+                                    {countryLastGuessCode === countriesTargetCode
+                                      ? "Correct"
+                                      : "Not quite, the correct country is highlighted"}
+                                  </span>
+                                </>
+                              ) : null}
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={nextCountryQuestion}
+                            disabled={!countryAnswered}
+                            className="inline-flex items-center gap-2 self-start rounded-full bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm shadow-slate-900/10 outline-none hover:bg-slate-800 focus:outline-none focus-visible:outline-none active:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                          >
+                            Next
+                            <ArrowRight weight="bold" className="h-4 w-4" />
+                          </button>
+                        </div>
+                        <MapScore
+                          score={countryScore}
+                          total={countryRoundLength}
+                        />
+                      </MapPrompt>
+                    ) : null}
+                    {!countryMapLoading ? (
+                      <MapRestart
+                        onRestart={() => {
+                          if (!selectedContinentId) return;
+                          void startCountriesQuizForContinent(
+                            selectedContinentId,
+                          );
+                        }}
+                      />
+                    ) : null}
                   </div>
                 ) : null}
               </div>
@@ -2334,8 +2367,8 @@ export default function QuizPage() {
                   <div className="text-sm font-semibold text-slate-700">
                     {currentFlagsContinent?.name ?? "Flags"} quiz
                   </div>
-                  <div className="text-sm text-slate-600">
-                    Score: {flagsScore}/{flagsRoundLength}
+                  <div className="text-base font-bold tabular-nums text-slate-900">
+                    {flagsScore}/{flagsRoundLength}
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -2401,39 +2434,38 @@ export default function QuizPage() {
                     </>
                   ) : (
                     <>
-                      <div className="mt-1 flex flex-wrap items-center gap-3">
+                      <div className="mt-1">
                         {flagsTargetCountry ? (
-                          <div className="relative h-10 w-16 overflow-hidden rounded-md ring-1 ring-slate-900/10">
-                            <CountryFlag
-                              src={
-                                flagsTargetCountry.flags.svg ||
-                                flagsTargetCountry.flags.png
-                              }
-                              alt={
-                                flagsTargetCountry.flags.alt ??
-                                `Flag of ${flagsTargetCountry.name.common}`
-                              }
-                              code={flagsTargetCountry.cca2}
-                              sizes="64px"
-                            />
-                          </div>
-                        ) : (
-                          <div
-                            className="h-10 w-16 rounded-md bg-slate-200"
-                            aria-hidden="true"
-                          />
-                        )}
-                        <div className="text-2xl font-bold">
+                          // The flag alone is the question. Tapping it reads the
+                          // wording aloud for a child who cannot read it yet.
                           <button
                             type="button"
                             onClick={() => {
                               speakText("Which country has this flag?");
                             }}
-                            className="cursor-pointer text-left"
+                            className="cursor-pointer"
                           >
-                            Which country has this flag?
+                            <div className="relative h-14 w-24 overflow-hidden rounded-md ring-1 ring-slate-900/10">
+                              <CountryFlag
+                                src={
+                                  flagsTargetCountry.flags.svg ||
+                                  flagsTargetCountry.flags.png
+                                }
+                                alt={
+                                  flagsTargetCountry.flags.alt ??
+                                  `Flag of ${flagsTargetCountry.name.common}`
+                                }
+                                code={flagsTargetCountry.cca2}
+                                sizes="96px"
+                              />
+                            </div>
                           </button>
-                        </div>
+                        ) : (
+                          <div
+                            className="h-14 w-24 rounded-md bg-slate-200"
+                            aria-hidden="true"
+                          />
+                        )}
                       </div>
 
                       {flagsAnswered && flagsTargetCountry ? (
