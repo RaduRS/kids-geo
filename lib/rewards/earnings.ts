@@ -2,7 +2,7 @@ import type { ContinentId } from "@/lib/geo/continents";
 
 // Money is tracked in pence (integer) so the running balance never drifts the
 // way floating-point pounds would.
-export const EUROPE_REWARD_PENCE = 50;
+export const EUROPE_REWARD_PENCE = 20;
 export const OTHER_CONTINENT_REWARD_PENCE = 100;
 
 // Only a flawless round pays out: the country, capital, and flag quizzes are
