@@ -227,23 +227,17 @@ function MapRestart({
 function CountryContinentPicker({
   svgText,
   codeToContinent,
-  quizzedCountryCounts,
   onSelect,
 }: {
   svgText: string | null;
   codeToContinent: Map<string, ContinentId> | null;
-  quizzedCountryCounts: Map<ContinentId, number> | null;
   onSelect: (id: ContinentId) => void;
 }) {
   return (
     <section className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {CONTINENTS.map((continent) => {
         const previewReady = !!svgText && !!codeToContinent;
-        const quizzedCount = quizzedCountryCounts?.get(continent.id) ?? null;
-        // A continent with fewer than ten countries plays a shorter round, so
-        // the perfect score that pays out is unreachable on it.
-        const paysOut =
-          quizzedCount !== null && quizzedCount >= QUIZ_ROUND_GOAL;
+        const rewardPence = rewardPenceForContinent(continent.id);
 
         return (
           <button
@@ -271,30 +265,24 @@ function CountryContinentPicker({
                   </div>
                 </div>
               )}
+              {/* What a flawless round is worth, over the map so the child
+                  knows the prize before starting. */}
+              <span
+                className={
+                  rewardPence > 0
+                    ? "absolute right-3 top-3 rounded-full bg-white/95 px-3 py-1 text-sm font-bold text-emerald-700 shadow-sm ring-1 ring-emerald-200 backdrop-blur-sm"
+                    : "absolute right-3 top-3 rounded-full bg-white/95 px-3 py-1 text-sm font-bold text-slate-500 shadow-sm ring-1 ring-slate-900/10 backdrop-blur-sm"
+                }
+              >
+                {formatGBP(rewardPence)}
+              </span>
             </div>
 
             <div className="p-5">
               <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
+                <div>
                   <div className="text-xl font-bold text-slate-900 md:text-2xl">
                     {continent.name}
-                  </div>
-                  {/* What a flawless round is worth, so the child knows the
-                      prize before starting rather than only at the end. */}
-                  <div
-                    className={
-                      paysOut
-                        ? "mt-1 text-sm font-semibold text-emerald-700"
-                        : "mt-1 text-sm font-semibold text-slate-500"
-                    }
-                  >
-                    {quizzedCount === null
-                      ? "Loading prize…"
-                      : paysOut
-                        ? `${QUIZ_ROUND_GOAL}/${QUIZ_ROUND_GOAL} earns ${formatGBP(
-                            rewardPenceForContinent(continent.id),
-                          )}`
-                        : `No prize — only ${quizzedCount} to find`}
                   </div>
                 </div>
                 <div className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-slate-900/10 transition-colors group-hover:bg-slate-800">
@@ -672,41 +660,6 @@ export default function QuizPage() {
     map.set("_somaliland", "africa");
     return map;
   }, [countries]);
-
-  // How many countries each continent actually quizzes, counted from the paths
-  // drawn on the world map minus the dependent territories that are never asked
-  // about. A round is min(10, this), so this also decides whether a continent
-  // can reach the 10/10 that pays out. Shown on the continent picker so the
-  // reward is known before the child starts.
-  const quizzedCountryCounts = useMemo(() => {
-    if (!svgText || !codeToContinent) return null;
-
-    const doc = new DOMParser().parseFromString(svgText, "image/svg+xml");
-    const seen = new Set<string>();
-    const counts = new Map<ContinentId, number>();
-
-    Array.from(doc.querySelectorAll("path")).forEach((path) => {
-      const rawId =
-        path.getAttribute("id") ??
-        path.closest("g[id]")?.getAttribute("id") ??
-        "";
-      const code =
-        COUNTRY_CODE_ALIASES[rawId.toLowerCase()] ?? rawId.toLowerCase();
-
-      // Two-letter ids are countries; anything else (_somaliland, path-N) is
-      // not quizzed, and dependent territories are drawn but never asked about.
-      if (code.length !== 2 || seen.has(code)) return;
-      if (NON_SOVEREIGN_QUIZ_CODES.has(code)) return;
-
-      const continentId = codeToContinent.get(code);
-      if (!continentId) return;
-
-      seen.add(code);
-      counts.set(continentId, (counts.get(continentId) ?? 0) + 1);
-    });
-
-    return counts;
-  }, [svgText, codeToContinent]);
 
   const allCountriesByCode = useMemo(() => {
     const map = new Map<string, Country>();
@@ -1922,7 +1875,6 @@ export default function QuizPage() {
               <CountryContinentPicker
                 svgText={svgText}
                 codeToContinent={codeToContinent}
-                quizzedCountryCounts={quizzedCountryCounts}
                 onSelect={(id) => {
                   void startCountriesQuizForContinent(id);
                 }}
@@ -2192,7 +2144,6 @@ export default function QuizPage() {
               <CountryContinentPicker
                 svgText={svgText}
                 codeToContinent={codeToContinent}
-                quizzedCountryCounts={quizzedCountryCounts}
                 onSelect={(id) => {
                   void startCapitalsQuizForContinent(id);
                 }}
@@ -2486,7 +2437,6 @@ export default function QuizPage() {
               <CountryContinentPicker
                 svgText={svgText}
                 codeToContinent={codeToContinent}
-                quizzedCountryCounts={quizzedCountryCounts}
                 onSelect={(id) => {
                   void startFlagsQuizForContinent(id);
                 }}
