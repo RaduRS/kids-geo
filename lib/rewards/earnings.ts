@@ -1,16 +1,21 @@
 import type { ContinentId } from "@/lib/geo/continents";
 
 // Money is tracked in pence (integer) so the running balance never drifts the
-// way floating-point pounds would.
+// way floating-point pounds would. Smaller, better-known continents pay less,
+// so a child does not earn the whole balance on the two easiest quizzes.
 export const EUROPE_REWARD_PENCE = 10;
+export const SOUTH_AMERICA_REWARD_PENCE = 50;
 export const OTHER_CONTINENT_REWARD_PENCE = 100;
+
+const REWARD_BY_CONTINENT: Partial<Record<ContinentId, number>> = {
+  europe: EUROPE_REWARD_PENCE,
+  "south-america": SOUTH_AMERICA_REWARD_PENCE,
+};
 
 // Only a flawless round pays out: the country, capital, and flag quizzes are
 // ten questions each, so a "perfect" round means 10 correct out of 10.
 export function rewardPenceForContinent(continentId: ContinentId): number {
-  return continentId === "europe"
-    ? EUROPE_REWARD_PENCE
-    : OTHER_CONTINENT_REWARD_PENCE;
+  return REWARD_BY_CONTINENT[continentId] ?? OTHER_CONTINENT_REWARD_PENCE;
 }
 
 export function formatGBP(pence: number): string {
