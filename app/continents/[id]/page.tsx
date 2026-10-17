@@ -279,7 +279,7 @@ export default function ContinentDetailPage({
           </div>
         </header>
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_300px] md:items-start lg:grid-cols-[1fr_380px]">
+        <div className="flex flex-col gap-4">
           <section className="overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-slate-900/10">
             <div className="border-b border-slate-200/60 bg-slate-50 px-5 py-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -387,92 +387,83 @@ export default function ContinentDetailPage({
                     })}
                   </ZoomableSvg>
                 )}
+                {/* What the child just tapped, floated over the map the way the
+                    quiz floats its question, so the map can stay full width. */}
+                {!loading ? (
+                  <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start p-3">
+                    {selectedCountry ? (
+                      <div className="pointer-events-auto flex min-w-0 items-center gap-3 rounded-3xl bg-white/95 px-4 py-3 shadow-sm ring-1 ring-slate-900/10 backdrop-blur-sm">
+                        <button
+                          type="button"
+                          className="relative h-8 w-12 shrink-0 cursor-pointer overflow-hidden rounded-md ring-1 ring-slate-900/10 outline-none focus:outline-none focus-visible:outline-none"
+                          onClick={() => speakCountryName(selectedCountry)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              speakCountryName(selectedCountry);
+                            }
+                          }}
+                          aria-label={`Speak ${selectedCountry.name.common}`}
+                        >
+                          <CountryFlag
+                            src={selectedCountry.flags.svg}
+                            alt={
+                              selectedCountry.flags.alt ||
+                              `Flag of ${selectedCountry.name.common}`
+                            }
+                            code={selectedCountry.cca2}
+                            sizes="48px"
+                          />
+                        </button>
+                        <div className="flex min-w-0 flex-col items-start">
+                          <button
+                            type="button"
+                            className="cursor-pointer truncate text-left text-xl font-bold text-slate-900 outline-none focus:outline-none focus-visible:outline-none md:text-2xl"
+                            onClick={() => speakCountryName(selectedCountry)}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter" || event.key === " ") {
+                                event.preventDefault();
+                                speakCountryName(selectedCountry);
+                              }
+                            }}
+                            aria-label={`Speak ${selectedCountry.name.common}`}
+                          >
+                            {selectedCountry.name.common}
+                          </button>
+                          <button
+                            type="button"
+                            className="cursor-pointer text-left text-base font-semibold text-slate-700 outline-none focus:outline-none focus-visible:outline-none"
+                            onClick={() => {
+                              const capital = selectedCountry.capital?.[0];
+                              if (!capital) return;
+                              speakText(capital);
+                            }}
+                            onKeyDown={(event) => {
+                              if (event.key !== "Enter" && event.key !== " ") {
+                                return;
+                              }
+                              event.preventDefault();
+                              const capital = selectedCountry.capital?.[0];
+                              if (!capital) return;
+                              speakText(capital);
+                            }}
+                            aria-label={`Speak capital of ${selectedCountry.name.common}`}
+                          >
+                            {selectedCountry.capital?.[0] || "N/A"}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="rounded-3xl bg-white/95 px-4 py-3 text-sm font-semibold text-slate-600 shadow-sm ring-1 ring-slate-900/10 backdrop-blur-sm">
+                        Tap a country on the map to see its name, capital, and
+                        flag.
+                      </div>
+                    )}
+                  </div>
+                ) : null}
               </div>
             </div>
           </section>
-
-          <aside className="overflow-hidden rounded-3xl bg-white shadow-sm ring-1 ring-slate-900/10 md:sticky md:top-6">
-            <div className="border-b border-slate-200/60 bg-slate-50 px-5 py-4">
-              <div className="text-sm font-semibold text-slate-700">
-                Country details
-              </div>
-            </div>
-
-            <div className="p-5">
-              {selectedCountry ? (
-                <div className="flex flex-col gap-4">
-                  <div className="flex items-center gap-4">
-                    <button
-                      type="button"
-                      className="relative h-14 w-20 cursor-pointer overflow-hidden rounded-xl ring-1 ring-slate-900/10 outline-none focus:outline-none focus-visible:outline-none"
-                      onClick={() => speakCountryName(selectedCountry)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          speakCountryName(selectedCountry);
-                        }
-                      }}
-                      aria-label={`Speak ${selectedCountry.name.common}`}
-                    >
-                      <CountryFlag
-                        src={selectedCountry.flags.svg}
-                        alt={
-                          selectedCountry.flags.alt ||
-                          `Flag of ${selectedCountry.name.common}`
-                        }
-                        code={selectedCountry.cca2}
-                        sizes="80px"
-                      />
-                    </button>
-                    <div className="min-w-0">
-                      <button
-                        type="button"
-                        className="block w-full cursor-pointer truncate text-left text-xl font-bold text-slate-900 outline-none focus:outline-none focus-visible:outline-none"
-                        onClick={() => speakCountryName(selectedCountry)}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter" || event.key === " ") {
-                            event.preventDefault();
-                            speakCountryName(selectedCountry);
-                          }
-                        }}
-                        aria-label={`Speak ${selectedCountry.name.common}`}
-                      >
-                        {selectedCountry.name.common}{" "}
-                        <span className="font-semibold text-slate-500">
-                          | {selectedCountry.cca2}
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        className="mt-1 block w-full cursor-pointer text-left text-base font-semibold text-slate-700 outline-none focus:outline-none focus-visible:outline-none"
-                        onClick={() => {
-                          const capital = selectedCountry.capital?.[0];
-                          if (!capital) return;
-                          speakText(capital);
-                        }}
-                        onKeyDown={(event) => {
-                          if (event.key !== "Enter" && event.key !== " ") {
-                            return;
-                          }
-                          event.preventDefault();
-                          const capital = selectedCountry.capital?.[0];
-                          if (!capital) return;
-                          speakText(capital);
-                        }}
-                        aria-label={`Speak capital of ${selectedCountry.name.common}`}
-                      >
-                        {selectedCountry.capital?.[0] || "N/A"}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="rounded-2xl bg-slate-50 p-4 text-slate-700 ring-1 ring-slate-900/10">
-                  Tap a country on the map to see its name, capital, and flag.
-                </div>
-              )}
-            </div>
-          </aside>
         </div>
       </div>
     </div>
