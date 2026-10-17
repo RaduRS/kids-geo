@@ -139,11 +139,17 @@ function QuizControls({
   onNext,
   nextDisabled,
   showNext,
+  onSubmit,
+  submitDisabled,
+  showSubmit,
 }: {
   onRestart: () => void;
   onNext: () => void;
   nextDisabled: boolean;
   showNext: boolean;
+  onSubmit?: () => void;
+  submitDisabled?: boolean;
+  showSubmit?: boolean;
 }) {
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-wrap items-center justify-end gap-2 p-3">
@@ -154,7 +160,16 @@ function QuizControls({
       >
         Restart
       </button>
-      {showNext ? (
+      {showSubmit ? (
+        <button
+          type="button"
+          onClick={onSubmit}
+          disabled={submitDisabled}
+          className="pointer-events-auto rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-slate-900/10 outline-none hover:bg-slate-800 focus:outline-none focus-visible:outline-none active:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+        >
+          Submit
+        </button>
+      ) : showNext ? (
         <button
           type="button"
           onClick={onNext}
@@ -728,6 +743,7 @@ export default function QuizPage() {
     setCountryAnswered(false);
     setCountryRevealCode(null);
     setCountryLastGuessCode(null);
+    setCountrySelectedCode(null);
     setCountryScore(0);
     setCountryQuestionIndex(0);
     setCountryAvailableCodes([]);
@@ -750,6 +766,7 @@ export default function QuizPage() {
     setFlagsAnswered(false);
     setFlagsRevealCode(null);
     setFlagsLastGuessCode(null);
+    setFlagsSelectedCode(null);
     setFlagsAvailableCodes([]);
     setFlagsScore(0);
     setFlagsQuestionIndex(0);
@@ -861,6 +878,11 @@ export default function QuizPage() {
   const [countryLastGuessCode, setCountryLastGuessCode] = useState<
     string | null
   >(null);
+  // The country the child has tapped but not yet submitted. Tapping only
+  // selects; the answer is judged when Submit is pressed.
+  const [countrySelectedCode, setCountrySelectedCode] = useState<string | null>(
+    null,
+  );
   const [countryMapLoading, setCountryMapLoading] = useState(false);
   const [countryAvailableCodes, setCountryAvailableCodes] = useState<string[]>(
     [],
@@ -931,6 +953,10 @@ export default function QuizPage() {
   const [flagsAnswered, setFlagsAnswered] = useState(false);
   const [flagsRevealCode, setFlagsRevealCode] = useState<string | null>(null);
   const [flagsLastGuessCode, setFlagsLastGuessCode] = useState<string | null>(
+    null,
+  );
+  // See countrySelectedCode: tapping selects a country, Submit judges it.
+  const [flagsSelectedCode, setFlagsSelectedCode] = useState<string | null>(
     null,
   );
   const [flagsMapLoading, setFlagsMapLoading] = useState(false);
@@ -1091,6 +1117,7 @@ export default function QuizPage() {
     setCountryAnswered(false);
     setCountryRevealCode(null);
     setCountryLastGuessCode(null);
+    setCountrySelectedCode(null);
     setCountrySvgPaths([]);
     setCountryViewBox("0 0 100 100");
     setCountryMapLoading(true);
@@ -1126,8 +1153,19 @@ export default function QuizPage() {
     countryAvailableCodes.length,
   );
 
-  const handleCountryGuess = (countryCode: string) => {
+  // Tapping a country only selects it, so an accidental tap while pinching to
+  // zoom does not cost the child a question. Submit then judges the selection.
+  const handleCountrySelect = (countryCode: string) => {
     if (!countriesTargetCode || countryAnswered) {
+      return;
+    }
+
+    setCountrySelectedCode(countryCode);
+  };
+
+  const handleCountrySubmit = () => {
+    const countryCode = countrySelectedCode;
+    if (!countryCode || !countriesTargetCode || countryAnswered) {
       return;
     }
 
@@ -1166,6 +1204,7 @@ export default function QuizPage() {
       setCountryAnswered(false);
       setCountryRevealCode(null);
       setCountryLastGuessCode(null);
+      setCountrySelectedCode(null);
       return;
     }
 
@@ -1173,6 +1212,7 @@ export default function QuizPage() {
     setCountryAnswered(false);
     setCountryRevealCode(null);
     setCountryLastGuessCode(null);
+    setCountrySelectedCode(null);
 
     // Read the next question aloud once, so the child hears it without having
     // to tap. Only on Next: the first question of a round stays silent.
@@ -1371,6 +1411,7 @@ export default function QuizPage() {
     setCountryAnswered(false);
     setCountryRevealCode(null);
     setCountryLastGuessCode(null);
+    setCountrySelectedCode(null);
 
     setFlagsContinentId(continentId);
     setFlagsScore(0);
@@ -1378,6 +1419,7 @@ export default function QuizPage() {
     setFlagsAnswered(false);
     setFlagsRevealCode(null);
     setFlagsLastGuessCode(null);
+    setFlagsSelectedCode(null);
     setFlagsSvgPaths([]);
     setFlagsBaseViewBox("0 0 100 100");
     setFlagsMapLoading(true);
@@ -1409,8 +1451,18 @@ export default function QuizPage() {
   // awarded on a short round.
   const flagsRoundLength = Math.min(scoreGoal, flagsAvailableCodes.length);
 
-  const handleFlagGuess = (countryCode: string) => {
+  // See handleCountrySelect: tapping only selects, Submit judges the answer.
+  const handleFlagSelect = (countryCode: string) => {
     if (!flagsTargetCode || flagsAnswered) {
+      return;
+    }
+
+    setFlagsSelectedCode(countryCode);
+  };
+
+  const handleFlagSubmit = () => {
+    const countryCode = flagsSelectedCode;
+    if (!countryCode || !flagsTargetCode || flagsAnswered) {
       return;
     }
 
@@ -1449,6 +1501,7 @@ export default function QuizPage() {
       setFlagsAnswered(false);
       setFlagsRevealCode(null);
       setFlagsLastGuessCode(null);
+      setFlagsSelectedCode(null);
       return;
     }
 
@@ -1456,6 +1509,7 @@ export default function QuizPage() {
     setFlagsAnswered(false);
     setFlagsRevealCode(null);
     setFlagsLastGuessCode(null);
+    setFlagsSelectedCode(null);
   };
 
   const flagsDone = flagsRoundLength > 0 && flagsQuestionIndex >= flagsRoundLength;
@@ -1892,21 +1946,29 @@ export default function QuizPage() {
                             countryAnswered &&
                             code === countryLastGuessCode &&
                             countryLastGuessCode !== countryRevealCode;
+                          const isSelected =
+                            !!code &&
+                            !countryAnswered &&
+                            code === countrySelectedCode;
 
                           const fill = isCorrect
                             ? "#86efac"
                             : isWrongGuess
                               ? "#fecdd3"
-                              : country
-                                ? "#cbd5e1"
-                                : "#e2e8f0";
+                              : isSelected
+                                ? "#93c5fd"
+                                : country
+                                  ? "#cbd5e1"
+                                  : "#e2e8f0";
                           const stroke = isCorrect
                             ? "#16a34a"
                             : isWrongGuess
                               ? "#e11d48"
-                              : "#ffffff";
+                              : isSelected
+                                ? "#2563eb"
+                                : "#ffffff";
                           const strokeWidth =
-                            isCorrect || isWrongGuess ? 1.6 : 0.6;
+                            isCorrect || isWrongGuess || isSelected ? 1.6 : 0.6;
 
                           return (
                             <path
@@ -1941,7 +2003,7 @@ export default function QuizPage() {
                                   ).blur();
                                   return;
                                 }
-                                handleCountryGuess(code);
+                                handleCountrySelect(code);
                                 (event.currentTarget as SVGPathElement).blur();
                               }}
                               onKeyDown={(event) => {
@@ -1961,7 +2023,7 @@ export default function QuizPage() {
                                     speakText(country.name.common);
                                     return;
                                   }
-                                  handleCountryGuess(code);
+                                  handleCountrySelect(code);
                                 }
                               }}
                             />
@@ -2021,15 +2083,25 @@ export default function QuizPage() {
                               ) : null}
                             </div>
                           </div>
-                          <button
-                            type="button"
-                            onClick={nextCountryQuestion}
-                            disabled={!countryAnswered}
-                            className="inline-flex items-center gap-2 self-start rounded-full bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm shadow-slate-900/10 outline-none hover:bg-slate-800 focus:outline-none focus-visible:outline-none active:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-300"
-                          >
-                            Next
-                            <ArrowRight weight="bold" className="h-4 w-4" />
-                          </button>
+                          {countryAnswered ? (
+                            <button
+                              type="button"
+                              onClick={nextCountryQuestion}
+                              className="inline-flex items-center gap-2 self-start rounded-full bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm shadow-slate-900/10 outline-none hover:bg-slate-800 focus:outline-none focus-visible:outline-none active:bg-slate-700"
+                            >
+                              Next
+                              <ArrowRight weight="bold" className="h-4 w-4" />
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={handleCountrySubmit}
+                              disabled={!countrySelectedCode}
+                              className="inline-flex items-center gap-2 self-start rounded-full bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm shadow-slate-900/10 outline-none hover:bg-slate-800 focus:outline-none focus-visible:outline-none active:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                            >
+                              Submit
+                            </button>
+                          )}
                         </div>
                         <MapScore
                           score={countryScore}
@@ -2511,7 +2583,7 @@ export default function QuizPage() {
                         </div>
                       ) : (
                         <div className="mt-2 text-sm text-slate-600">
-                          Tap the country on the map.
+                          Tap a country, then press submit.
                         </div>
                       )}
                     </>
@@ -2542,21 +2614,27 @@ export default function QuizPage() {
                             flagsAnswered &&
                             code === flagsLastGuessCode &&
                             flagsLastGuessCode !== flagsRevealCode;
+                          const isSelected =
+                            !!code && !flagsAnswered && code === flagsSelectedCode;
 
                           const fill = isCorrect
                             ? "#86efac"
                             : isWrongGuess
                               ? "#fecdd3"
-                              : country
-                                ? "#cbd5e1"
-                                : "#e2e8f0";
+                              : isSelected
+                                ? "#93c5fd"
+                                : country
+                                  ? "#cbd5e1"
+                                  : "#e2e8f0";
                           const stroke = isCorrect
                             ? "#16a34a"
                             : isWrongGuess
                               ? "#e11d48"
-                              : "#ffffff";
+                              : isSelected
+                                ? "#2563eb"
+                                : "#ffffff";
                           const strokeWidth =
-                            isCorrect || isWrongGuess ? 1.6 : 0.6;
+                            isCorrect || isWrongGuess || isSelected ? 1.6 : 0.6;
 
                           return (
                             <path
@@ -2591,7 +2669,7 @@ export default function QuizPage() {
                                   ).blur();
                                   return;
                                 }
-                                handleFlagGuess(code);
+                                handleFlagSelect(code);
                                 (event.currentTarget as SVGPathElement).blur();
                               }}
                               onKeyDown={(event) => {
@@ -2611,7 +2689,7 @@ export default function QuizPage() {
                                     speakText(country.name.common);
                                     return;
                                   }
-                                  handleFlagGuess(code);
+                                  handleFlagSelect(code);
                                 }
                               }}
                             />
@@ -2626,7 +2704,10 @@ export default function QuizPage() {
                       }}
                       onNext={nextFlagQuestion}
                       nextDisabled={!flagsAnswered}
-                      showNext
+                      showNext={flagsAnswered}
+                      showSubmit={!flagsAnswered}
+                      onSubmit={handleFlagSubmit}
+                      submitDisabled={!flagsSelectedCode}
                     />
                   </div>
                 ) : null}
