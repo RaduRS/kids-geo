@@ -38,10 +38,11 @@ const COUNTRY_CODE_ALIASES: Record<string, string> = {
   kv: "xk",
 };
 
-// A full round is ten questions. A continent with fewer than ten countries on
-// the map plays a shorter round instead, which never reaches this goal and so
-// never pays out (Oceania).
-const QUIZ_ROUND_GOAL = 10;
+// Every round is this many questions. A continent with fewer countries on the
+// map (North America has 19, South America 12, Oceania 5) repeats countries to
+// reach the full round, so a flawless score is always this many out of this
+// many.
+const QUIZ_ROUND_GOAL = 20;
 
 function shuffle<T>(items: readonly T[]) {
   const copy = [...items];
@@ -91,10 +92,27 @@ function weightedShuffle<T>(
     .map(({ item }) => item);
 }
 
+// Builds a round of exactly `roundSize` questions. A continent with fewer
+// countries than the round length shuffles them again and appends another pass,
+// so the quiz is always the same length however small the continent is.
 function pickQuizCountries(availableCodes: readonly string[], roundSize: number) {
-  return weightedShuffle(availableCodes, (code) =>
-    EASY_COUNTRY_CODES.has(code) ? EASY_COUNTRY_WEIGHT : 1,
-  ).slice(0, Math.min(roundSize, availableCodes.length));
+  if (availableCodes.length === 0) return [];
+
+  const order: string[] = [];
+  while (order.length < roundSize) {
+    const pass = weightedShuffle(availableCodes, (code) =>
+      EASY_COUNTRY_CODES.has(code) ? EASY_COUNTRY_WEIGHT : 1,
+    );
+    // Where a pass wraps round to fill the round, rotate the first country away
+    // so the same one is not asked twice in a row.
+    const previous = order[order.length - 1];
+    if (previous !== undefined && pass.length > 1 && pass[0] === previous) {
+      pass.push(pass.shift() as string);
+    }
+    order.push(...pass);
+  }
+
+  return order.slice(0, roundSize);
 }
 
 function speakText(text: string) {
@@ -941,11 +959,13 @@ export default function QuizPage() {
     scoreBefore: number,
   ) => {
     if (!continentId || !isCorrect) return;
-    // Only a full 10-question round pays out. A short round (Oceania has fewer
-    // than 10 countries on the map) never awards money.
+    // Only a full round pays out. Every round is now scoreGoal questions long,
+    // so this only guards against a continent with no quizzed countries at all.
     if (roundLength < scoreGoal) return;
     if (questionIndex + 1 < roundLength) return;
     if (scoreBefore < roundLength - 1) return;
+    // Oceania pays 0, and award() ignores a zero, so a perfect round there
+    // simply awards nothing.
     award(rewardPenceForContinent(continentId));
   };
 
@@ -1156,12 +1176,11 @@ export default function QuizPage() {
   const countriesTargetCountry = countriesTargetCode
     ? (countriesByCode.get(countriesTargetCode) ?? null)
     : null;
-  // A round is 10 questions, or fewer only when the continent has fewer than
-  // 10 countries on the map (Oceania). Capping here is what stops repeats.
-  const countryRoundLength = Math.min(
-    scoreGoal,
-    countryAvailableCodes.length,
-  );
+  // A full round of scoreGoal questions. A continent with fewer countries than
+  // that repeats them, so the round is never short. Zero only when the map has
+  // no quizzed countries at all.
+  const countryRoundLength =
+    countryAvailableCodes.length > 0 ? scoreGoal : 0;
 
   // Tapping a country only selects it, so an accidental tap while pinching to
   // zoom does not cost the child a question. Submit then judges the selection.
@@ -1269,11 +1288,18 @@ export default function QuizPage() {
         getPrimaryCapital(data.countriesByCode.get(code) ?? null),
       );
       setCapitalsAvailableCodes(availableCapitalCodes);
-      const order = shuffle(availableCapitalCodes).slice(
-        0,
-        Math.min(scoreGoal, availableCapitalCodes.length),
-      );
-      setCapitalsQuestionOrder(order);
+      // Like the country quiz, capitals repeat when the continent has fewer
+      // than scoreGoal of them, so every round is the same length.
+      const order: string[] = [];
+      while (order.length < scoreGoal && availableCapitalCodes.length > 0) {
+        const pass = shuffle(availableCapitalCodes);
+        const previous = order[order.length - 1];
+        if (previous !== undefined && pass.length > 1 && pass[0] === previous) {
+          pass.push(pass.shift() as string);
+        }
+        order.push(...pass);
+      }
+      setCapitalsQuestionOrder(order.slice(0, scoreGoal));
     } finally {
       setCapitalsMapLoading(false);
     }
@@ -1287,13 +1313,10 @@ export default function QuizPage() {
     ? (capitalsCountriesByCode.get(capitalsTargetCode) ?? null)
     : null;
   const capitalsTargetCapital = getPrimaryCapital(capitalsTargetCountry);
-  // See countryRoundLength: 10 questions, or fewer for a continent with fewer
-  // than 10 mapped countries (Oceania). Prevents repeats and short-circuits
-  // the reward for such a round.
-  const capitalsRoundLength = Math.min(
-    scoreGoal,
-    capitalsAvailableCodes.length,
-  );
+  // See countryRoundLength: a full round, with countries repeated if the
+  // continent has fewer than scoreGoal of them.
+  const capitalsRoundLength =
+    capitalsAvailableCodes.length > 0 ? scoreGoal : 0;
   useEffect(() => {
     if (!capitalsTargetCode) {
       setCapitalsOptions([]);
@@ -1457,9 +1480,8 @@ export default function QuizPage() {
   const flagsTargetCountry = flagsTargetCode
     ? (flagsCountriesByCode.get(flagsTargetCode) ?? null)
     : null;
-  // See countryRoundLength: 10 questions, or fewer for Oceania. No money is
-  // awarded on a short round.
-  const flagsRoundLength = Math.min(scoreGoal, flagsAvailableCodes.length);
+  // See countryRoundLength: a full round, repeating countries as needed.
+  const flagsRoundLength = flagsAvailableCodes.length > 0 ? scoreGoal : 0;
 
   // See handleCountrySelect: tapping only selects, Submit judges the answer.
   const handleFlagSelect = (countryCode: string) => {
@@ -1894,7 +1916,10 @@ export default function QuizPage() {
                         Score: {countryScore}/{countryRoundLength}
                       </div>
                     </div>
-                    {selectedContinentId && countryRoundLength >= scoreGoal ? (
+                    {/* Oceania pays nothing, so it gets no earnings line
+                        rather than a £0.00 one. */}
+                    {selectedContinentId &&
+                    rewardPenceForContinent(selectedContinentId) > 0 ? (
                       <div className="text-sm font-semibold">
                         {countryScore >= countryRoundLength ? (
                           <span className="text-emerald-700">
@@ -2205,7 +2230,8 @@ export default function QuizPage() {
                       <div className="mt-1 text-2xl font-bold">
                         Score: {capitalsScore}/{capitalsRoundLength}
                       </div>
-                      {capitalsContinentId && capitalsRoundLength >= scoreGoal ? (
+                      {capitalsContinentId &&
+                      rewardPenceForContinent(capitalsContinentId) > 0 ? (
                         capitalsScore >= capitalsRoundLength ? (
                           <div className="mt-2 text-sm font-semibold text-emerald-700">
                             You earned{" "}
@@ -2455,7 +2481,10 @@ export default function QuizPage() {
                         Score: {flagsScore}/{flagsRoundLength}
                       </div>
                     </div>
-                    {flagsContinentId && flagsRoundLength >= scoreGoal ? (
+                    {/* Oceania pays nothing, so it gets no earnings line
+                        rather than a £0.00 one. */}
+                    {flagsContinentId &&
+                    rewardPenceForContinent(flagsContinentId) > 0 ? (
                       <div className="text-sm font-semibold">
                         {flagsScore >= flagsRoundLength ? (
                           <span className="text-emerald-700">
