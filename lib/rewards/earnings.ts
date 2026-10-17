@@ -4,7 +4,7 @@ import type { ContinentId } from "@/lib/geo/continents";
 // way floating-point pounds would. Smaller, better-known continents pay less,
 // so a child does not earn the whole balance on the two easiest quizzes.
 export const EUROPE_REWARD_PENCE = 10;
-export const SOUTH_AMERICA_REWARD_PENCE = 50;
+export const SOUTH_AMERICA_REWARD_PENCE = 30;
 export const OTHER_CONTINENT_REWARD_PENCE = 100;
 
 const REWARD_BY_CONTINENT: Partial<Record<ContinentId, number>> = {
