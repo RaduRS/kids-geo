@@ -68,6 +68,8 @@ export default function ContinentDetailPage({
   }, [countriesByCode, svgPaths]);
 
   const getCountryFill = (countryCode: string) => {
+    // Keep Canada distinct from its neighbour, the United States.
+    if (countryCode === "ca") return "#22c55e";
     let hash = 0;
     for (let i = 0; i < countryCode.length; i += 1) {
       hash = (hash * 31 + countryCode.charCodeAt(i)) >>> 0;
@@ -365,10 +367,9 @@ export default function ContinentDetailPage({
                           tabIndex={country ? 0 : -1}
                           className={
                             country
-                              ? "cursor-pointer outline-none focus:outline-none focus-visible:outline-none"
+                              ? "cursor-pointer outline-none focus-visible:stroke-slate-900 focus-visible:[stroke-width:2.5]"
                               : undefined
                           }
-                          style={country ? { outline: "none" } : undefined}
                           onClick={() => {
                             if (!country) return;
                             setSelectedCountry(country);
@@ -395,7 +396,7 @@ export default function ContinentDetailPage({
                       <div className="pointer-events-auto flex min-w-0 items-center gap-3 rounded-3xl bg-white/95 px-4 py-3 shadow-sm ring-1 ring-slate-900/10 backdrop-blur-sm">
                         <button
                           type="button"
-                          className="relative h-8 w-12 shrink-0 cursor-pointer overflow-hidden rounded-md ring-1 ring-slate-900/10 outline-none focus:outline-none focus-visible:outline-none"
+                          className="relative h-8 w-12 shrink-0 cursor-pointer overflow-hidden rounded-md ring-1 ring-slate-900/10 outline-none focus-visible:ring-2 focus-visible:ring-sky-600 focus-visible:ring-offset-2"
                           onClick={() => speakCountryName(selectedCountry)}
                           onKeyDown={(event) => {
                             if (event.key === "Enter" || event.key === " ") {
@@ -418,7 +419,7 @@ export default function ContinentDetailPage({
                         <div className="flex min-w-0 flex-col items-start">
                           <button
                             type="button"
-                            className="cursor-pointer truncate text-left text-xl font-bold text-slate-900 outline-none focus:outline-none focus-visible:outline-none md:text-2xl"
+                            className="cursor-pointer truncate text-left text-xl font-bold text-slate-900 outline-none focus-visible:ring-2 focus-visible:ring-sky-600 focus-visible:ring-offset-2 md:text-2xl"
                             onClick={() => speakCountryName(selectedCountry)}
                             onKeyDown={(event) => {
                               if (event.key === "Enter" || event.key === " ") {
@@ -432,7 +433,7 @@ export default function ContinentDetailPage({
                           </button>
                           <button
                             type="button"
-                            className="cursor-pointer text-left text-base font-semibold text-slate-700 outline-none focus:outline-none focus-visible:outline-none"
+                            className="cursor-pointer text-left text-base font-semibold text-slate-700 outline-none focus-visible:ring-2 focus-visible:ring-sky-600 focus-visible:ring-offset-2"
                             onClick={() => {
                               const capital = selectedCountry.capital?.[0];
                               if (!capital) return;
