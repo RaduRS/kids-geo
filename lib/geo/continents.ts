@@ -113,11 +113,3 @@ export function shouldKeepOnlyMainlandForContinent(
   const code = countryCode.toLowerCase();
   return code === "fr" || code === "es" || code === "pt";
 }
-
-// Territories excluded from quizzes stay visible as inert land. Greenland is
-// included in learning and quizzes so children can practise what they learn.
-export const NON_SOVEREIGN_QUIZ_CODES = new Set([
-  "pr",
-  "fk",
-  "nc",
-]);

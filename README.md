@@ -27,6 +27,12 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+Run `npm test` for the service worker tests. For browser regressions, install
+Chromium once with `npx playwright install chromium`, then run `npm run test:e2e`.
+The browser suite starts the app when needed, compares all six learning maps
+with the country, flag, and capital quizzes, and checks full rounds containing
+Puerto Rico, the Falkland Islands, and New Caledonia.
+
 You can start editing the main screen by modifying `app/page.tsx`. The world
 map logic lives in:
 

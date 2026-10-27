@@ -46,10 +46,10 @@ export default function RootLayout({
         <BalanceProvider>
           <div className="min-h-screen bg-linear-to-b from-sky-50 via-sky-50 to-sky-100">
           <header className="sticky top-0 z-20 w-full border-b border-sky-200/70 bg-white/70 backdrop-blur">
-            <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-3 md:px-6 md:py-4">
+            <div className="mx-auto grid w-full max-w-6xl grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:flex sm:justify-between md:px-6 md:py-4">
               <Link
                 href="/"
-                className="flex items-center gap-3 rounded-2xl outline-none focus:outline-none focus-visible:outline-none"
+                className="flex items-center gap-3 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-sky-500 sm:mr-auto"
                 aria-label="Go to world map"
               >
                 <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl shadow-sm shadow-slate-900/10 ring-2 ring-white/80">
@@ -72,10 +72,10 @@ export default function RootLayout({
                 </div>
               </Link>
 
-              <div className="flex items-center gap-2">
+              <div className="col-span-2 row-start-2 sm:contents">
                 <HeaderNav />
-                <BalanceBadge />
               </div>
+              <BalanceBadge />
             </div>
           </header>
 

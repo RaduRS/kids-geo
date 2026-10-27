@@ -20,7 +20,6 @@ import {
   CONTINENTS,
   type ContinentId,
   WORLD_MAP_SVG_SRC,
-  NON_SOVEREIGN_QUIZ_CODES,
   findContinentById,
   mapCountryToContinent,
   shouldKeepOnlyMainlandForContinent,
@@ -39,9 +38,8 @@ const COUNTRY_CODE_ALIASES: Record<string, string> = {
 };
 
 // Every round is this many questions. A continent with fewer countries on the
-// map (North America has 19, South America 12, Oceania 5) repeats countries to
-// reach the full round, so a flawless score is always this many out of this
-// many.
+// map repeats countries to reach the full round, so a flawless score is always
+// this many out of this many.
 const QUIZ_ROUND_GOAL = 20;
 
 function shuffle<T>(items: readonly T[]) {
@@ -1083,14 +1081,12 @@ export default function QuizPage() {
         return;
       }
 
-      // Dependent territories stay on the map as inert land but are never
-      // quizzed, so they are pushed without a code (like Somaliland above).
+      // Every place selectable on the learning map is also selectable and
+      // eligible for quiz questions, including mapped dependent territories.
       extractedPaths.push({
         id: rawId || `path-${index}`,
         d: p.getAttribute("d") || "",
-        countryCode: NON_SOVEREIGN_QUIZ_CODES.has(countryCode)
-          ? null
-          : countryCode,
+        countryCode,
       });
     });
 

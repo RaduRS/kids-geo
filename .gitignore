@@ -45,3 +45,5 @@ logs/
 
 # playwright scratch output
 .playwright-mcp/
+/playwright-report/
+/test-results/

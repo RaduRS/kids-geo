@@ -12,7 +12,7 @@ const REWARD_BY_CONTINENT: Partial<Record<ContinentId, number>> = {
   europe: EUROPE_REWARD_PENCE,
   "south-america": SOUTH_AMERICA_REWARD_PENCE,
   "north-america": NORTH_AMERICA_REWARD_PENCE,
-  // Oceania is the one continent that pays nothing: it has only five countries
+  // Oceania is the one continent that pays nothing: it has only a few countries
   // on the map, so its round repeats them over and over.
   "australia-oceania": 0,
 };
